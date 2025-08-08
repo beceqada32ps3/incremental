@@ -971,6 +971,7 @@ module type S_gen = sig
     type t [@@deriving sexp_of]
 
     val default_timing_wheel_config : Timing_wheel.Config.t
+    val get_default_timing_wheel_config : unit -> Timing_wheel.Config.t
 
     val create
       :  ?timing_wheel_config:Timing_wheel.Config.t
@@ -1516,6 +1517,10 @@ module type Incremental = sig
     -> ('a, 'w) t
     -> ('a, 'w) Observer.t
 
+  (** [observe_no_finalization t] behaves exactly like [observe ~should_finalize:false t]
+      but unlike [observe], [observe_no_finalization] is portable. *)
+  val observe_no_finalization : ('a, 'w) t -> ('a, 'w) Observer.t
+
   module Update : sig
     type 'a t =
       | Necessary of 'a
@@ -1574,6 +1579,8 @@ module type Incremental = sig
     val of_equal : ('a -> 'a -> bool) -> 'a t
     val always : _ t
     val never : _ t
+    val get_always : unit -> _ t
+    val get_never : unit -> _ t
     val phys_equal : _ t
     val poly_equal : _ t
     val should_cutoff : 'a t -> old_value:'a -> new_value:'a -> bool
@@ -1758,6 +1765,8 @@ module type Incremental = sig
     (** The default timing-wheel configuration, with one millisecond precision, and alarms
         allowed arbitrarily far in the future. *)
     val default_timing_wheel_config : Timing_wheel.Config.t
+
+    val get_default_timing_wheel_config : unit -> Timing_wheel.Config.t
 
     val create
       :  'w State.t

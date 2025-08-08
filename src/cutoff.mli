@@ -15,6 +15,8 @@ val of_compare : ('a -> 'a -> int) -> 'a t
 val of_equal : ('a -> 'a -> bool) -> 'a t
 val always : _ t
 val never : _ t
+val get_always : unit -> _ t
+val get_never : unit -> _ t
 val phys_equal : _ t
 val poly_equal : _ t
 val equal : 'a t -> 'a t -> bool

@@ -13,6 +13,7 @@ end
 include Invariant.S with type t := t
 
 val top : t
+val get_top : unit -> t
 val is_top : t -> bool
 val height : t -> int
 val is_valid : t -> bool

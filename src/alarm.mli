@@ -9,3 +9,4 @@ type t = Types.Alarm.t [@@deriving sexp_of]
 include Invariant.S with type t := t
 
 val null : t
+val get_null : unit -> t

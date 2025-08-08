@@ -37,7 +37,7 @@ let%expect_test "render dot file" =
   Expect_test_patdiff.print_patdiff dot grapheasy_dot;
   [%expect
     {|
-    -1,11 +1,11
+    === DIFF HUNK ===
       digraph G {
         rankdir = TB
         bgcolor = transparent

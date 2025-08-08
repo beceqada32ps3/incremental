@@ -33,6 +33,8 @@ module Generic = struct
         let t = create (module Config.Default ()) ~max_height_allowed
       end)
     ;;
+
+    let create = Portability_hacks.magic_portable__needs_portable_functors create
   end
 
   module Scope = struct
@@ -61,6 +63,7 @@ module Generic = struct
   let const state a = State.const state a
   let return = const
   let observe = State.create_observer
+  let observe_no_finalization = State.create_observer_no_finalization
   let map = State.map
   let bind = State.bind
 
@@ -190,6 +193,8 @@ module Generic = struct
           (Timing_wheel.Level_bits.create_exn level_bits ~extend_to_max_num_bits:true)
         ()
     ;;
+
+    let get_default_timing_wheel_config () = default_timing_wheel_config
 
     let create state ?(timing_wheel_config = default_timing_wheel_config) ~start () =
       (* Make sure [start] is rounded to the nearest microsecond.  Otherwise, if you
