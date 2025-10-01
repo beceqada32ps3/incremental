@@ -4753,7 +4753,7 @@ struct
             E.Node.add_dependency parent2 (E.Dependency.create lhs_change);
             E.Node.watch parent1, E.Node.watch parent2
           in
-          Ref.set_temporarily sexp_style To_string_hum ~f:(fun () ->
+          Dynamic.with_temporarily sexp_style To_string_hum ~f:(fun () ->
             let v1 = Var.create [ 2 ] in
             let n1, n2 =
               weird_unzip (Var.watch v1) (fun t -> map t ~f:(fun x -> x, -x))

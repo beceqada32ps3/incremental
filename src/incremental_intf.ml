@@ -738,7 +738,7 @@ module type S_gen = sig
   val if_ : bool t -> then_:'a t -> else_:'a t -> 'a t
   val freeze : ?when_:('a -> bool) -> 'a t -> 'a t
   val depend_on : 'a t -> depend_on:_ t -> 'a t
-  val necessary_if_alive : 'a t -> 'a t @@ nonportable
+  val necessary_if_alive : 'a t -> 'a t
   val for_all : bool t array -> bool t
   val exists : bool t array -> bool t
   val all : 'a t list -> 'a list t
@@ -812,7 +812,7 @@ module type S_gen = sig
     val replace : 'a t -> f:('a -> 'a) -> unit
   end
 
-  module (Observer @@ nonportable) : sig @@ portable
+  module Observer : sig @@ portable
     type 'a t [@@deriving sexp_of]
 
     include Invariant.S1 with type 'a t := 'a t
@@ -888,7 +888,6 @@ module type S_gen = sig
     -> 'a Base.Hashtbl.Key.t
     -> ('a -> 'b Heap_block.t)
     -> ('a -> 'b Heap_block.t) Staged.t
-    @@ nonportable
 
   val weak_memoize_fun_by_key
     :  ?initial_size:int
@@ -896,7 +895,6 @@ module type S_gen = sig
     -> ('a -> 'key)
     -> ('a -> 'b Heap_block.t)
     -> ('a -> 'b Heap_block.t) Staged.t
-    @@ nonportable
 
   val user_info : _ t -> Info.t option
   val set_user_info : _ t -> Info.t option -> unit
@@ -972,7 +970,7 @@ module type S_gen = sig
   module Clock : sig
     type t [@@deriving sexp_of]
 
-    val default_timing_wheel_config : Timing_wheel.Config.t @@ nonportable
+    val default_timing_wheel_config : Timing_wheel.Config.t
     val get_default_timing_wheel_config : unit -> Timing_wheel.Config.t
 
     val create
