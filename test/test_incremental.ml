@@ -245,7 +245,7 @@ struct
 
         let%expect_test _ =
           (* We can't use the same variable twice otherwise the optimization is not
-               applied. *)
+             applied. *)
           let var1 = Var.create 1 in
           let var2 = Var.create 1 in
           let o var = observe (map (map (Var.watch var) ~f:Fn.id) ~f:Fn.id) in
@@ -761,8 +761,8 @@ struct
       ;;
 
       let%expect_test _ =
-        (* invariants blow up here if we don't make sure that we first make the
-             lhs-change node of binds necessary and only then the rhs necessary. *)
+        (* invariants blow up here if we don't make sure that we first make the lhs-change
+           node of binds necessary and only then the rhs necessary. *)
         let node1 = const () >>= return in
         let o = observe node1 in
         stabilize_ [%here];
@@ -940,7 +940,7 @@ struct
         (* the last trade prices of two stocks *)
         let ibm = Var.create_ [%here] 50. in
         let msft = Var.create_ [%here] 20. in
-        (* .5 shares of IBM, .5 shares of MSFT.  Divisor implicitly 1. *)
+        (* .5 shares of IBM, .5 shares of MSFT. Divisor implicitly 1. *)
         let cfg = Var.create_ [%here] (0.5, 0.5) in
         let nav =
           observe
@@ -1014,8 +1014,7 @@ struct
       ;;
 
       let%expect_test _ =
-        (* plugging an invalid node in a bind can invalidate the bind (though
-             not always) *)
+        (* plugging an invalid node in a bind can invalidate the bind (though not always) *)
         let x = Var.create 4 in
         let r = ref (const (-1)) in
         let o =
@@ -1041,8 +1040,8 @@ struct
       ;;
 
       let%expect_test _ =
-        (* changing the rhs from a node to its ancestor, which causes problems if
-             we leave the node with a broken invariant while adding the ancestor. *)
+        (* changing the rhs from a node to its ancestor, which causes problems if we leave
+           the node with a broken invariant while adding the ancestor. *)
         let lhs_var = Var.create false in
         let num_calls = ref 0 in
         let rhs_var = Var.create 13 in
@@ -1188,8 +1187,8 @@ struct
         ;;
 
         let%expect_test _ =
-          (* changing the rhs from a node to its ancestor, which causes problems if
-               we leave the node with a broken invariant while adding the ancestor. *)
+          (* changing the rhs from a node to its ancestor, which causes problems if we
+             leave the node with a broken invariant while adding the ancestor. *)
           let num_calls = ref 0 in
           let rhs_var = Var.create 13 in
           let first =
@@ -1379,8 +1378,8 @@ struct
       ;;
 
       let%expect_test _ =
-        (* changing branches from a node to its ancestor, which causes problems if
-             we leave the node with a broken invariant while adding the ancestor. *)
+        (* changing branches from a node to its ancestor, which causes problems if we
+           leave the node with a broken invariant while adding the ancestor. *)
         let test_var = Var.create false in
         let num_calls = ref 0 in
         let branch_var = Var.create 13 in
@@ -1631,8 +1630,8 @@ struct
       ;;
 
       let%expect_test _ =
-        (* propagating the first argument of [depend_on] while the result of
-             [depend_on] is not observable *)
+        (* propagating the first argument of [depend_on] while the result of [depend_on]
+           is not observable *)
         let var = Var.create 1 in
         let depend = depend_on (Var.watch var) ~depend_on:(const ()) in
         let o = observe depend in
@@ -1832,7 +1831,7 @@ struct
         let res = observe_stabilize_disallow f in
         assert (res = 0);
         (* re-stabilize a reduce_balanced_exn with a stale cache of its stabilized
-             children. *)
+           children. *)
         Var.set v 1;
         let res = observe_stabilize_disallow (Var.watch v) in
         assert (res = 1);
@@ -1900,7 +1899,7 @@ struct
            let%map test_value = List.gen_non_empty Test_value.quickcheck_generator in
            test_value)
           (* Trials limited because incremental tests can take time on the order of
-               milliseconds each, due to the invariant checking. *)
+             milliseconds each, due to the invariant checking. *)
           ~trials:100
           ~f:(fun test_values ->
             let array =
@@ -2147,8 +2146,8 @@ struct
         assert (Float.equal (value z) 32.);
         Var.set y 19.;
         stabilize_ [%here];
-        (* [num_adds] increases 2 for the full recompute.  [num_subs] doesn't change
-             because of the full recompute. *)
+        (* [num_adds] increases 2 for the full recompute. [num_subs] doesn't change
+           because of the full recompute. *)
         [%test_result: int] !num_adds ~expect:5;
         [%test_result: int] !num_subs ~expect:1;
         assert (Float.equal (value z) 36.)
@@ -2904,9 +2903,9 @@ struct
             ~f:(fun (d, v) -> Time_ns.add base (sec d), v)
             [ 1.0, 1
             ; 1.99999, 2
-              (* It is unspecified whether this alarm has fired when the
-                 time is 2. but this test relies on the two
-                 step_functions having the same unspecified behaviour. *)
+              (* It is unspecified whether this alarm has fired when the time is 2. but
+                 this test relies on the two step_functions having the same unspecified
+                 behaviour. *)
             ; 2.0, 3
             ; 3.00001, 4
             ; 4.0, 5
@@ -3079,8 +3078,8 @@ struct
         ;;
 
         let%expect_test _ =
-          (* calling [value] on a just-created observer of an already computed
-               incremental before stabilizing returns error. *)
+          (* calling [value] on a just-created observer of an already computed incremental
+             before stabilizing returns error. *)
           let x = Var.create_ [%here] 13 in
           let o = observe (watch x) in
           stabilize_ [%here];
@@ -3179,9 +3178,9 @@ struct
           stabilize_ [%here];
           disallow_future_use o;
           stabilize_ [%here];
-          (* This [full_major] + [stabilize] causes the finalizer for [o] to run and
-               makes sure that it doesn't do anything wrong, given that
-               [disallow_future_use o] has already been called. *)
+          (* This [full_major] + [stabilize] causes the finalizer for [o] to run and makes
+             sure that it doesn't do anything wrong, given that [disallow_future_use o]
+             has already been called. *)
           Gc.full_major ();
           stabilize_ [%here]
         ;;
@@ -3213,8 +3212,7 @@ struct
               Time_ns.Span.of_sec (utime +. stime)
             in
             let before = cpu_used () in
-            (* Don't use [stabilize_], which runs the invariant, which is too slow
-                 here. *)
+            (* Don't use [stabilize_], which runs the invariant, which is too slow here. *)
             stabilize ();
             List.iter observers ~f:Observer.disallow_future_use;
             stabilize ();
@@ -3409,8 +3407,7 @@ struct
         ;;
 
         let%expect_test _ =
-          (* adding an on-update-handler to an invalid node in an on-update
-               handler. *)
+          (* adding an on-update-handler to an invalid node in an on-update handler. *)
           let module I = Make () in
           let open I in
           let o = observe (watch (Var.create 13)) in
@@ -3426,8 +3423,8 @@ struct
         ;;
 
         let%expect_test _ =
-          (* on-update-handlers added during the firing of other on-update-handlers
-               should not fire now but instead after the next stabilization *)
+          (* on-update-handlers added during the firing of other on-update-handlers should
+             not fire now but instead after the next stabilization *)
           List.iter
             [ const 1; invalid ]
             ~f:(fun node ->
@@ -3449,8 +3446,7 @@ struct
         ;;
 
         let%expect_test _ =
-          (* on-update handler set up during stabilization fires after the
-               stabilization *)
+          (* on-update handler set up during stabilization fires after the stabilization *)
           let called = ref false in
           let unit = const () in
           let o_unit = observe unit in
@@ -3512,8 +3508,7 @@ struct
         ;;
 
         let%expect_test _ =
-          (* creating an observer and adding on_update handler during
-               stabilization *)
+          (* creating an observer and adding on_update handler during stabilization *)
           let v = Var.create 0 in
           let push, check = on_observer_update_queue () in
           let inner_obs = ref None in
@@ -3615,8 +3610,8 @@ struct
       ;;
 
       let%expect_test _ =
-        (* on-change handlers of a node that changes but is not necessary at the end
-             of a stabilization *)
+        (* on-change handlers of a node that changes but is not necessary at the end of a
+           stabilization *)
         let v = Var.create_ [%here] 0 in
         let n = Var.watch v in
         let push, check = on_update_queue () in
@@ -4237,8 +4232,7 @@ struct
               Time_ns.Span.of_sec (utime +. stime)
             in
             let before = cpu_used () in
-            (* Don't use [stabilize_], which runs the invariant, which is too slow
-                 here. *)
+            (* Don't use [stabilize_], which runs the invariant, which is too slow here. *)
             stabilize ();
             List.iter observers ~f:disallow_future_use;
             stabilize ();
@@ -4248,9 +4242,8 @@ struct
       ;;
 
       let%expect_test _ =
-        (* Deleting a parent from a child in such a way that it is replaced by a
-             second parent, and the two parents have different child_indexes for the
-             child. *)
+        (* Deleting a parent from a child in such a way that it is replaced by a second
+           parent, and the two parents have different child_indexes for the child. *)
         let c1 = const 12 in
         let c2 = const 12 in
         let o1 = observe (map2 c1 c2 ~f:( + )) in
@@ -4305,7 +4298,7 @@ struct
 
       module _ = struct
         (* This tests add_dependency/remove_dependency, invalidity (in particular a node
-             becomes invalid before being replaced by a valid one). *)
+           becomes invalid before being replaced by a valid one). *)
         include Join (struct
             let join : type a. a t t -> a t =
               fun t ->
@@ -4326,8 +4319,7 @@ struct
           end)
 
         let%expect_test _ =
-          (* plugging an already invalid incremental node make
-               the expert node invalid *)
+          (* plugging an already invalid incremental node make the expert node invalid *)
           let t = E.Node.create ignore in
           E.Node.add_dependency t (E.Dependency.create invalid);
           assert (is_invalid (E.Node.watch t))
@@ -4353,12 +4345,12 @@ struct
         ;;
 
         (* This tests
-             - whether we can actually write such a thing with the intf of incremental
-             - add_dependency/remove_dependency with an actually variable set of
-               children, unlike join
-             - incremental doesn't needlessly schedule certain nodes, destroying the good
-               complexities we're trying to get.
-             - behavior when observability if turned off and on
+           - whether we can actually write such a thing with the intf of incremental
+           - add_dependency/remove_dependency with an actually variable set of children,
+             unlike join
+           - incremental doesn't needlessly schedule certain nodes, destroying the good
+             complexities we're trying to get.
+           - behavior when observability if turned off and on
         *)
         let map_filter_mapi
           : type k v1 v2.
@@ -4574,8 +4566,8 @@ struct
         ;;
 
         (* This one checks
-             - expressivity of the interface, again
-             - on_observability_change callback
+           - expressivity of the interface, again
+           - on_observability_change callback
         *)
         let staged_eq
           : type a.
@@ -4697,14 +4689,14 @@ struct
         ;;
 
         (* Ensure we can make changes to an unnecessary expert node from a necessary
-             child. *)
+           child. *)
         let%expect_test _ =
           let weird_unzip
             : type a b c. a list t -> (a t -> (b * c) t) -> b list t * c list t
             =
             (* This function doesn't do anything really interesting, the point is more
-                 that the caller can make it call add_dependency or remove_dependency as
-                 desired. And we can check the correctness of the results. *)
+               that the caller can make it call add_dependency or remove_dependency as
+               desired. And we can check the correctness of the results. *)
             fun t f ->
             let f_result = ref None in
             let fs1 = ref None in
@@ -4715,8 +4707,8 @@ struct
               map t ~f:(fun l ->
                 (match !f_result with
                  | Some (len, (deps1, deps2)) when len <> List.length l ->
-                   (* remove_dependency does something different for the last
-                        child. So iterate in different orders so we cover both cases. *)
+                   (* remove_dependency does something different for the last child. So
+                      iterate in different orders so we cover both cases. *)
                    List.iter deps1 ~f:(E.Node.remove_dependency parent1);
                    List.iter (List.rev deps2) ~f:(E.Node.remove_dependency parent2);
                    f_result := None
@@ -4758,8 +4750,8 @@ struct
             let n1, n2 =
               weird_unzip (Var.watch v1) (fun t -> map t ~f:(fun x -> x, -x))
             in
-            (* We add/remove dependencies with only n2 necessary, both necessary
-                 and only n1 necessary.  *)
+            (* We add/remove dependencies with only n2 necessary, both necessary and only
+               n1 necessary. *)
             let o2 = observe n2 in
             stabilize_ ();
             print_s [%sexp (value o2 : int list)];
@@ -4797,8 +4789,8 @@ struct
         ;;
       end
     end :
-      (* This signature constraint is here to remind us to add a unit test
-           whenever Incremental's interface changes. *)
+      (* This signature constraint is here to remind us to add a unit test whenever
+         Incremental's interface changes. *)
       Incremental.S)
 
     (* Situations that cause failures. *)
@@ -4903,8 +4895,8 @@ struct
       let o1 = observe value_at in
       let o2 = observe s in
       stabilize_ [%here];
-      (* [advance_clock] should raise because the snapshot's [value_at] depends on
-           the snapshot itself. *)
+      (* [advance_clock] should raise because the snapshot's [value_at] depends on the
+         snapshot itself. *)
       assert (
         does_raise (fun () ->
           Clock.advance_clock clock ~to_:(Time_ns.add (Clock.now clock) (sec 2.))));
@@ -5009,22 +5001,24 @@ struct
       Var.set v false;
       assert (does_raise stabilize);
       (* assert (Observer.value_exn o = 6);
-         * Var.set v true;
-         * stabilize ();
-         * assert (Observer.value_exn o = 4); *)
+       * Var.set v true;
+       * stabilize ();
+       * assert (Observer.value_exn o = 4); *)
       ()
     ;;
 
     let%expect_test _ =
       (* [at_intervals] doesn't try to add alarms before the current time, even when
-           floating-point imprecision causes:
+         floating-point imprecision causes:
 
-           {[
-             let i = Timing_wheel.now_interval_num timing_wheel in
-             assert (Timing_wheel.interval_num timing_wheel
-                       (Timing_wheel.interval_num_start timing_wheel i)
-                     = i - 1);
-           ]}
+         {[
+           let i = Timing_wheel.now_interval_num timing_wheel in
+           assert (
+             Timing_wheel.interval_num
+               timing_wheel
+               (Timing_wheel.interval_num_start timing_wheel i)
+             = i - 1)
+         ]}
       *)
       let module I =
         Incremental.Make_with_config
@@ -5050,9 +5044,9 @@ struct
       let t = Clock.at_intervals clock (sec 1.) in
       let o = observe t in
       stabilize ();
-      (* Here, we advance to a time that has the bad property mentioned above.  A
-           previously buggy implementation of Incremental raised at this point because
-           it tried to add the next alarm for the [at_intervals] in the past. *)
+      (* Here, we advance to a time that has the bad property mentioned above. A
+         previously buggy implementation of Incremental raised at this point because it
+         tried to add the next alarm for the [at_intervals] in the past. *)
       Clock.advance_clock
         clock
         ~to_:(Time_ns.of_string "2014-01-09 09:35:05.040000-05:00");
@@ -5061,8 +5055,8 @@ struct
     ;;
 
     let%expect_test _ =
-      (* Updating var during partial stabilization should not reflect until
-           next stabilization *)
+      (* Updating var during partial stabilization should not reflect until next
+         stabilization *)
       let open I in
       let v = Var.create 0 in
       let x = map (Var.watch v) ~f:(fun v -> v + 1) in

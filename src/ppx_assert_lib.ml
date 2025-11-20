@@ -40,8 +40,8 @@ module Runtime = struct
            ])
     in
     (* Here and in other places we return exceptions, rather than directly raising, and
-     instead raise at the latest moment possible, so backtrace don't include noise from
-     these functions that construct exceptions. *)
+       instead raise at the latest moment possible, so backtrace don't include noise from
+       these functions that construct exceptions. *)
     E (message, sexp)
   ;;
 

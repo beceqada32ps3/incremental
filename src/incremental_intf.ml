@@ -2007,13 +2007,13 @@ module type Incremental = sig @@ portable
 
   (*_ See the Jane Street Style Guide for an explanation of [Private] submodules:
 
-    https://opensource.janestreet.com/standards/#private-submodules *)
+      https://opensource.janestreet.com/standards/#private-submodules *)
   module Private : sig
     val debug : bool
   end
 
   (** Exposes the [traverse] function, which takes a callback to crawl the list of [Incr]
-      nodes (and their descendants) provided, used for analyzing [Incr] graphs **)
+      nodes (and their descendants) provided, used for analyzing [Incr] graphs *)
   module For_analyzer :
     For_analyzer_intf.S with type packed_node := Packed.t and type 'a state := 'a State.t
 end

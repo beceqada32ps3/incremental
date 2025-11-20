@@ -1,9 +1,9 @@
-(* This module has a giant [module rec] defining all the mutually recursive types used
-   in the implementation.  The definition of each type is then repeated in its file;
-   comments belong there, not here.
+(* This module has a giant [module rec] defining all the mutually recursive types used in
+   the implementation. The definition of each type is then repeated in its file; comments
+   belong there, not here.
 
-   We put just enough sexp converters here to display node ids.  The detailed sexp
-   converters are generated via [with sexp] in the individual files.  Defining the sexp
+   We put just enough sexp converters here to display node ids. The detailed sexp
+   converters are generated via [with sexp] in the individual files. Defining the sexp
    converters outside of the [module rec] makes it impossible to accidentally introduce a
    sexp converter that would try to produce an infinite sexp.
 *)
@@ -479,7 +479,7 @@ end = struct
     | _ -> true
   ;;
 
-  (* [is_necessary] is defined here because we need it before node.ml is available.  It is
+  (* [is_necessary] is defined here because we need it before node.ml is available. It is
      used during graph manipulation, and so is written with some care to be fast. *)
   let is_necessary t =
     t.num_parents > 0
@@ -494,17 +494,18 @@ end = struct
 
   let type_equal_if_phys_same (type a b) (t1 : a t) (t2 : b t) =
     (* This is type-safe assuming no one can give the same incremental node two different
-       types.  This is true because the field [mutable old_value_opt : 'a option] prevents
-       both subtyping and parameteric polymorphism.  But this allows to break
-       abstractions, as in someone could write:
+       types. This is true because the field [mutable old_value_opt : 'a option] prevents
+       both subtyping and parameteric polymorphism. But this allows to break abstractions,
+       as in someone could write:
 
        {[
          type t
          type u (* = t underneath *)
+
          val create : unit -> t Incr.t * u Incr.t (* the two incrementals are phys_equal *)
        ]}
 
-       and we would figure out that type t = u.  However, we could add a Type_equal.Id to
+       and we would figure out that type t = u. However, we could add a Type_equal.Id to
        nodes and do the same, so it seems to be a more general issue. *)
     if phys_same t1 t2
     then Some (t_is_injective (Obj.magic (T : _ Type_equal.t) : (a t, b t) Type_equal.t))

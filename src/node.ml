@@ -19,7 +19,7 @@ type 'a t = 'a Types.Node.t =
   ; (* [value_opt] starts as [none], and the first time [t] is computed it is set to
        [some], and remains [some] thereafter, until [t] is invalidated, if ever. *)
     mutable value_opt : 'a Uopt.t
-  ; (* [kind] is the kind of DAG node [t] is.  [kind] is mutable both for initialization
+  ; (* [kind] is the kind of DAG node [t] is. [kind] is mutable both for initialization
        and because it can change, e.g. if [t] is invalidated. *)
     mutable kind : 'a Kind.t
   ; mutable cutoff : 'a Cutoff.t
@@ -28,16 +28,16 @@ type 'a t = 'a Types.Node.t =
        necessary) need to be recomputed. *)
     mutable changed_at : Stabilization_num.t
   ; (* [num_on_update_handlers] is [List.length t.on_update_handlers] plus the number of
-       on-update handlers summed over all observers in [t.observers].  It is used to
+       on-update handlers summed over all observers in [t.observers]. It is used to
        quickly decide whether [t] needs to be added to [state.handle_after_stabilization]
-       when [t] changes.  [num_on_update_handlers] will decrease when an observer is
+       when [t] changes. [num_on_update_handlers] will decrease when an observer is
        removed from [t.observers], if the observer has on-update handlers. *)
     mutable num_on_update_handlers : int
   ; (* The parents of [t] are the nodes that depend on it, and should be computed when [t]
-       changes, once all of their other children are up to date.  [num_parents] is the
-       number of parents.  If [num_parents >= 1], then [parent0] is the first parent.
-       [parent1_and_beyond] holds the remaining parents.  The order of the parents doesn't
-       matter.  One node may occur multiple times as a parent of another (e.g. consider
+       changes, once all of their other children are up to date. [num_parents] is the
+       number of parents. If [num_parents >= 1], then [parent0] is the first parent.
+       [parent1_and_beyond] holds the remaining parents. The order of the parents doesn't
+       matter. One node may occur multiple times as a parent of another (e.g. consider
        [map2 n1 n1 ~f]).
 
        This representation is optimized for the overwhelmingly common case that a node has
@@ -45,39 +45,40 @@ type 'a t = 'a Types.Node.t =
     mutable num_parents : int
   ; mutable parent1_and_beyond : Packed.t Uopt.t Uniform_array.t
   ; mutable parent0 : Packed.t Uopt.t
-  ; (* [created_in] is initially the scope that the node is created in.  If a node is
-       later "rescoped", then created_in will be adjusted to the new scope that the node
-       is part of. *)
+  ; (* [created_in] is initially the scope that the node is created in. If a node is later
+       "rescoped", then created_in will be adjusted to the new scope that the node is part
+       of. *)
     mutable created_in : Scope.t
   ; (* [next_node_in_same_scope] singly links all nodes created in [t.created_in]. *)
     mutable next_node_in_same_scope : Packed.t Uopt.t
-  ; (* [height] is used to visit nodes in topological order.  If [is_necessary t], then
-       [height > c.height] for all children [c] of [t], and [height > Scope.height
-       t.created_in].  If [not (is_necessary t)], then [height = -1]. *)
+  ; (* [height] is used to visit nodes in topological order. If [is_necessary t], then
+       [height > c.height] for all children [c] of [t], and
+       [height > Scope.height t.created_in]. If [not (is_necessary t)], then
+       [height = -1]. *)
     mutable height : int
   ; (* [height_in_recompute_heap] is the height at which [t] is stored in the recompute
-       heap, and is non-negative iff [t] is in the recompute heap.  If [t] is the
-       recompute heap, then typically [t.height = t.height_in_recompute_heap]; however,
-       while height is being adjusted, one can temporarily have [t.height >
-       t.height_in_recompute_heap].  When height adjustment finishes, equality is restored
-       by increasing [t.height_in_recompute_heap] to [t.height] and shifting [t]'s
-       position in the recompute heap. *)
+       heap, and is non-negative iff [t] is in the recompute heap. If [t] is the recompute
+       heap, then typically [t.height = t.height_in_recompute_heap]; however, while height
+       is being adjusted, one can temporarily have
+       [t.height > t.height_in_recompute_heap]. When height adjustment finishes, equality
+       is restored by increasing [t.height_in_recompute_heap] to [t.height] and shifting
+       [t]'s position in the recompute heap. *)
     mutable height_in_recompute_heap : int
   ; (* [prev_in_recompute_heap] and [next_in_recompute_heap] doubly link all nodes of the
        same height in the recompute heap. *)
     mutable prev_in_recompute_heap : Packed.t Uopt.t
   ; mutable next_in_recompute_heap : Packed.t Uopt.t
   ; (* [height_in_adjust_heights_heap] is used only during height adjustment, and is
-       non-negative iff [t] is in the adjust-heights heap.  It holds the pre-adjusted
+       non-negative iff [t] is in the adjust-heights heap. It holds the pre-adjusted
        height of [t]. *)
     mutable height_in_adjust_heights_heap : int
   ; (* [next_in_adjust_heights_heap] singly links all nodes of the same height in the
        adjust-heights heap. *)
     mutable next_in_adjust_heights_heap : Packed.t Uopt.t
   ; (* [old_value_opt] is used only during stabilization, and only if
-       [t.num_on_update_handlers > 0].  It holds the pre-stabilization value of [t].  It
-       is cleared when running [t]'s on-update handlers, and so is always [Uopt.none]
-       between stabilizations. *)
+       [t.num_on_update_handlers > 0]. It holds the pre-stabilization value of [t]. It is
+       cleared when running [t]'s on-update handlers, and so is always [Uopt.none] between
+       stabilizations. *)
     mutable old_value_opt : 'a Uopt.t
   ; (* [observers] is the head of the doubly-linked list of observers of [t], or
        [Uopt.none] if there are no observers. *)
@@ -86,8 +87,8 @@ type 'a t = 'a Types.Node.t =
        times onto [state.handle_after_stabilization]. *)
     mutable is_in_handle_after_stabilization : bool
   ; (* [on_update_handlers] is the functions supplied to [Incremental.on_update] to be run
-       as described in the module [On_update_handler].  [on_update_handlers] does not
-       contain the on-update handlers in [t.observers].  [on_update_handlers] only ever
+       as described in the module [On_update_handler]. [on_update_handlers] does not
+       contain the on-update handlers in [t.observers]. [on_update_handlers] only ever
        gets longer; there is no way to remove elements. *)
     mutable on_update_handlers : 'a On_update_handler.t list
   ; mutable my_parent_index_in_child_at_index : int array
@@ -258,7 +259,7 @@ let should_be_invalidated : type a. a t -> bool =
   | Step_function _
   | Unordered_array_fold _ -> has_invalid_child t
   (* A *_change node is invalid if the node it is watching for changes is invalid (same
-     reason as above).  This is equivalent to [has_invalid_child t]. *)
+     reason as above). This is equivalent to [has_invalid_child t]. *)
   | Bind_lhs_change { lhs; _ } -> not (is_valid lhs)
   | If_test_change { test; _ } -> not (is_valid test)
   | Join_lhs_change { lhs; _ } -> not (is_valid lhs)
@@ -522,7 +523,7 @@ let create state created_in kind =
     ; my_parent_index_in_child_at_index =
         Array.create ~len:(Kind.initial_num_children kind) (-1)
         (* [my_child_index_in_parent_at_index] has one element because it may need to hold
-       the child index of [parent0]. *)
+           the child index of [parent0]. *)
     ; my_child_index_in_parent_at_index = [| -1 |]
     ; force_necessary = false
     ; user_info = None
@@ -531,8 +532,8 @@ let create state created_in kind =
     }
   in
   Scope.add_node created_in t;
-  (* [invariant] does not yet hold here because many uses of [Node.create] use [kind =
-     Uninitialized], and then mutate [t.kind] later. *)
+  (* [invariant] does not yet hold here because many uses of [Node.create] use
+     [kind = Uninitialized], and then mutate [t.kind] later. *)
   t
 ;;
 

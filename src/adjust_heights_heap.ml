@@ -144,8 +144,8 @@ let ensure_height_requirement t ~original_child ~original_parent ~child ~parent 
   if child.height >= parent.height
   then (
     add_unless_mem t parent;
-    (* We set [parent.height] after adding [parent] to the heap, so that [parent] goes
-       in the heap with its pre-adjusted height. *)
+    (* We set [parent.height] after adding [parent] to the heap, so that [parent] goes in
+       the heap with its pre-adjusted height. *)
     set_height t parent (child.height + 1))
 ;;
 

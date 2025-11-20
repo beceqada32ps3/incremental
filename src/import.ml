@@ -2,11 +2,11 @@
 
 open Core
 
-(* All [assert]s and other checks throughout the code are guarded by [if debug].  The
-   DEBUG variable is set in the lib [incremental] and unset in the lib
-   [incremental_debug], but apart from that they are identical.  Tests are run with both
-   the production and debug lib, and users can choose to build with the debug library, if
-   they suspect they found a bug in incremental. *)
+(* All [assert]s and other checks throughout the code are guarded by [if debug]. The DEBUG
+   variable is set in the lib [incremental] and unset in the lib [incremental_debug], but
+   apart from that they are identical. Tests are run with both the production and debug
+   lib, and users can choose to build with the debug library, if they suspect they found a
+   bug in incremental. *)
 
 [%%if JSC_DEBUG]
 

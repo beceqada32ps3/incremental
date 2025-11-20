@@ -61,8 +61,8 @@ type t = Types.State.t =
   ; recompute_heap : Recompute_heap.t
   ; adjust_heights_heap : Adjust_heights_heap.t
   ; (* [propagate_invalidity] holds nodes that have invalid children that should be
-       considered for invalidation.  It is only used during graph restructuring:
-       [invalidate_node] and [add_parent].  Once an element is added to the stack, we then
+       considered for invalidation. It is only used during graph restructuring:
+       [invalidate_node] and [add_parent]. Once an element is added to the stack, we then
        iterate until invalidity has propagated to all ancestors as necessary, according to
        [Node.should_be_invalidated]. *)
     propagate_invalidity : Node.Packed.t Stack.t
@@ -74,11 +74,11 @@ type t = Types.State.t =
        [state] as [In_use] or [Disallowed]. *)
     mutable all_observers : Internal_observer.Packed.t Uopt.t
   ; (* We enqueue finalized observers in a thread-safe queue, for handling during
-       stabilization.  We use a thread-safe queue because OCaml finalizers can run in any
+       stabilization. We use a thread-safe queue because OCaml finalizers can run in any
        thread. *)
     finalized_observers : Internal_observer.Packed.t Thread_safe_queue.t
   ; (* [new_observers] holds observers created since the most recent start of a
-       stabilization -- these have [state] as [Created] or [Unlinked].  At the start of
+       stabilization -- these have [state] as [Created] or [Unlinked]. At the start of
        stabilization, we link into [all_observers] all observers in [new_observers] whose
        state is [Created] and add them to the [observers] of the node they are observing.
        We structure things this way to allow observers to be created during stabilization
@@ -86,39 +86,39 @@ type t = Types.State.t =
        becoming necessary and the the graph changing during such code. *)
     new_observers : Internal_observer.Packed.t Stack.t
   ; (* [disallowed_observers] holds all observers that have been disallowed since the most
-       recent start of a stabilization -- these have [state = Disallowed].  At the start
-       of stabilization, these are unlinked from [all_observers] and their state is
-       changed to [Unlinked].  We structure things this way to allow user code running
-       during stabilization to call [disallow_future_use], but to not have to deal with
-       nodes becoming unnecessary and the graph changing during such code. *)
+       recent start of a stabilization -- these have [state = Disallowed]. At the start of
+       stabilization, these are unlinked from [all_observers] and their state is changed
+       to [Unlinked]. We structure things this way to allow user code running during
+       stabilization to call [disallow_future_use], but to not have to deal with nodes
+       becoming unnecessary and the graph changing during such code. *)
     disallowed_observers : Internal_observer.Packed.t Stack.t
   ; (* We delay all [Var.set] calls that happen during stabilization so that they take
-       effect after stabilization.  All variables set during stabilization are pushed on
-       [set_during_stabilization] rather than setting them.  Then, after the graph has
+       effect after stabilization. All variables set during stabilization are pushed on
+       [set_during_stabilization] rather than setting them. Then, after the graph has
        stabilized, we do all the sets, so that they take effect at the start of the next
        stabilization. *)
     set_during_stabilization : Var.Packed.t Stack.t
   ; (* [handle_after_stabilization] has all nodes with handlers to consider running at the
-       end of the next stabilization.  At the end of stabilization, we consider each node
+       end of the next stabilization. At the end of stabilization, we consider each node
        in [handle_after_stabilization], and if we decide to run its on-update handlers,
-       push it on [run_on_update_handlers].  Then, once we've considered all nodes in
+       push it on [run_on_update_handlers]. Then, once we've considered all nodes in
        [handle_after_stabilization], we iterate through [run_on_update_handlers] and
        actually run the handlers.
 
-       These two passes are essential for correctness.  During the first pass, we haven't
+       These two passes are essential for correctness. During the first pass, we haven't
        run any user handlers, so we know that the state is exactly as it was when
-       stabilization finished.  In particular, we know that if a node is necessary, then
-       it has a stable value; once user handlers run, we don't know this.  During the
-       second pass, user handlers can make calls to any incremental function except for
-       [stabilize].  In particular, some functions push nodes on
-       [handle_after_stabilization].  But no functions (except for [stabilize]) modify
+       stabilization finished. In particular, we know that if a node is necessary, then it
+       has a stable value; once user handlers run, we don't know this. During the second
+       pass, user handlers can make calls to any incremental function except for
+       [stabilize]. In particular, some functions push nodes on
+       [handle_after_stabilization]. But no functions (except for [stabilize]) modify
        [run_on_update_handlers]. *)
     handle_after_stabilization : Node.Packed.t Stack.t
   ; run_on_update_handlers : Run_on_update_handlers.t Stack.t
   ; mutable only_in_debug : Only_in_debug.t
   ; weak_hashtbls : Packed_weak_hashtbl.t Thread_safe_queue.t
   ; mutable keep_node_creation_backtrace : bool
-  ; (* Stats.  These are all incremented at the appropriate place, and never decremented. *)
+  ; (* Stats. These are all incremented at the appropriate place, and never decremented. *)
     mutable num_nodes_became_necessary : int
   ; mutable num_nodes_became_unnecessary : int
   ; mutable num_nodes_changed : int
@@ -133,11 +133,11 @@ type t = Types.State.t =
 
 module Clock = struct
   type t = Types.Clock.t =
-    { (* We use [timing_wheel] for time-based incrementals.  [now] is a variable holding
-         the current time.  [handle_fired] is the closure passed to
-         [Timing_wheel.advance_clock].  It links all the fired alarm values into
-         [fired_alarm_values].  After [Timing_wheel.advance_clock] returns, it then
-         walks through the linked list and actually fires them.  This two-pass approach is
+    { (* We use [timing_wheel] for time-based incrementals. [now] is a variable holding
+         the current time. [handle_fired] is the closure passed to
+         [Timing_wheel.advance_clock]. It links all the fired alarm values into
+         [fired_alarm_values]. After [Timing_wheel.advance_clock] returns, it then walks
+         through the linked list and actually fires them. This two-pass approach is
          necessary because one is not allowed to call [Timing_wheel] functions from the
          [handle_fired] that one passes to [Timing_wheel.advance_clock]. *)
       timing_wheel : Alarm_value.t Timing_wheel.t
@@ -275,7 +275,7 @@ let invariant t =
                 (* When an observer is added to [new_observers], it has [state = Created].
                    The only possible transitions from there are to [Unlinked] or to
                    [In_use], which also removes it from [new_observers], never to be added
-                   again.  Thus it is impossible for an observer in [new_observers] to be
+                   again. Thus it is impossible for an observer in [new_observers] to be
                    [In_use] or [Disallowed]. *)
                 match internal_observer.state with
                 | Created | Unlinked -> ()
@@ -391,30 +391,29 @@ let remove_alarm (clock : Clock.t) alarm =
   then Timing_wheel.remove clock.timing_wheel alarm
 ;;
 
-(* An invalid node is node whose kind is [Invalid].  A node's kind is set to [Invalid]
-   when the lhs of its scope changes, or one if its children propagate the invalidity
-   upward (see [Node.should_be_invalidated] to see in which case invalidity propagation
-   stops).  Invalidating a node disconnects it from its children, which means:
+(* An invalid node is node whose kind is [Invalid]. A node's kind is set to [Invalid] when
+   the lhs of its scope changes, or one if its children propagate the invalidity upward
+   (see [Node.should_be_invalidated] to see in which case invalidity propagation stops).
+   Invalidating a node disconnects it from its children, which means:
 
-   1. an invalid node cannot end up on the scheduler (if it is on the scheduler when
-   it is invalidated, it is removed)
+   1. an invalid node cannot end up on the scheduler (if it is on the scheduler when it is
+      invalidated, it is removed)
    2. an invalid node doesn't make its children necessary anymore.
 
    Invalid nodes usually have no parents, because the upward invalidity propagation means
    that their parents will themselves become invalid and disconnect from their children.
    However, [if], [join] or [bind] are not invalidated by the upward propagation, so an
-   invalid node can still have parents.  Invalid nodes can be necessary, in the case where
+   invalid node can still have parents. Invalid nodes can be necessary, in the case where
    they have parents, and also when they are observed.
 
    The upward propagation of invalidity happens both when a node becomes invalid, and when
-   trying to add an edge from an invalid child node to another node.  Because invalidity
-   is only propagated upward, and because the rhs of a bind is invalidated before it
+   trying to add an edge from an invalid child node to another node. Because invalidity is
+   only propagated upward, and because the rhs of a bind is invalidated before it
    executes, a node cannot be both computed and invalidated in the same stabilization.
 
-   When invalidating, we can't assume much about the nodes we visit.  We cannot assume
-   that nodes are valid (the rhs can contain previously invalidated nodes), or that nodes
-   are unnecessary (nodes can be made necessary without going through their containing
-   binds). *)
+   When invalidating, we can't assume much about the nodes we visit. We cannot assume that
+   nodes are valid (the rhs can contain previously invalidated nodes), or that nodes are
+   unnecessary (nodes can be made necessary without going through their containing binds). *)
 
 let rec invalidate_node : type a. a Node.t -> unit =
   fun node ->
@@ -431,15 +430,14 @@ let rec invalidate_node : type a. a Node.t -> unit =
     then (
       remove_children node;
       (* The node doesn't have children anymore, so we can lower its height as much as
-         possible, to one greater than the scope it was created in.  Also, because we
-         are lowering the height, we don't need to adjust any of its ancestors' heights.
-         We could leave the height alone, but we may as well lower it as much as
-         possible to avoid making the heights of any future ancestors unnecessarily
-         large. *)
+         possible, to one greater than the scope it was created in. Also, because we are
+         lowering the height, we don't need to adjust any of its ancestors' heights. We
+         could leave the height alone, but we may as well lower it as much as possible to
+         avoid making the heights of any future ancestors unnecessarily large. *)
       node.height <- Scope.height node.created_in + 1);
     (* We don't set [node.created_in] or [node.next_node_in_same_scope]; we leave [node]
-       in the scope it was created in.  If that scope is ever invalidated, then that
-       will clear [node.next_node_in_same_scope] *)
+       in the scope it was created in. If that scope is ever invalidated, then that will
+       clear [node.next_node_in_same_scope] *)
     (match node.kind with
      | At at -> remove_alarm at.clock at.alarm
      | At_intervals at_intervals -> remove_alarm at_intervals.clock at_intervals.alarm
@@ -448,10 +446,10 @@ let rec invalidate_node : type a. a Node.t -> unit =
      | _ -> ());
     Node.set_kind node Invalid;
     (* If we called [propagate_invalidity] right away on the parents, we would get into
-       trouble.  The parent would disconnect itself from the current node, thus
-       modifying the list of parents we iterate on.  Even if we made a special case, it
-       still wouldn't be enough to handle other cases where the list of parents is
-       modified (e.g. when [lhs] is invalidated in the example in the comment about
+       trouble. The parent would disconnect itself from the current node, thus modifying
+       the list of parents we iterate on. Even if we made a special case, it still
+       wouldn't be enough to handle other cases where the list of parents is modified
+       (e.g. when [lhs] is invalidated in the example in the comment about
        [can_recompute_now] far below). *)
     for index = 0 to node.num_parents - 1 do
       Stack.push t.propagate_invalidity (Node.get_parent node ~index)
@@ -505,7 +503,7 @@ let propagate_invalidity t =
            - or [node] just became necessary and tried connecting to an already invalid
              child. In that case, [child.changed_at > node.recomputed_at] for that child,
              because if we had been recomputed when that child changed, we would have been
-             made invalid back then.  For expert nodes, the argument is the same, except
+             made invalid back then. For expert nodes, the argument is the same, except
              that instead of lhs-change nodes make the expert nodes stale, it's made stale
              explicitely when adding or removing children. *)
         if debug then assert (Node.needs_to_be_computed node);
@@ -531,7 +529,7 @@ let propagate_invalidity t =
 
 (* [add_parent_without_adjusting_heights t ~child ~parent] adds [parent] as a parent of
    [child], and makes [child] and all its descendants necessary, ensuring their heights
-   are accurate.  There is no guarantee about the relative heights of [child] and [parent]
+   are accurate. There is no guarantee about the relative heights of [child] and [parent]
    though. *)
 let rec add_parent_without_adjusting_heights
   : type a b. child:a Node.t -> parent:b Node.t -> child_index:int -> unit
@@ -550,8 +548,8 @@ let rec add_parent_without_adjusting_heights
 and became_necessary : type a. a Node.t -> unit =
   fun node ->
   (* [Scope.is_necessary node.created_in] is true (assuming the scope itself is valid)
-     because [Node.iter_children] below first visits the lhs-change of bind nodes and
-     then the rhs. *)
+     because [Node.iter_children] below first visits the lhs-change of bind nodes and then
+     the rhs. *)
   if Node.is_valid node && not (Scope.is_necessary node.created_in)
   then
     failwiths
@@ -572,9 +570,9 @@ and became_necessary : type a. a Node.t -> unit =
     (* Now that child is necessary, it should have a valid height. *)
     if debug then assert (child.height >= 0);
     if child.height >= node.height then set_height node (child.height + 1));
-  (* Now that the height is correct, maybe add [node] to the recompute heap.  [node]
-     just became necessary, so it can't have been in the recompute heap.  Since [node]
-     is necessary, we should add it to the recompute heap iff it is stale. *)
+  (* Now that the height is correct, maybe add [node] to the recompute heap. [node] just
+     became necessary, so it can't have been in the recompute heap. Since [node] is
+     necessary, we should add it to the recompute heap iff it is stale. *)
   if debug then assert (not (Node.is_in_recompute_heap node));
   if debug then assert (Node.is_necessary node);
   if Node.is_stale node then Recompute_heap.add t.recompute_heap node;
@@ -593,8 +591,8 @@ let add_parent ~child ~parent ~child_index =
   let t = parent.state in
   (* In the case when the edge being added creates a cycle, it is possible for the
      recursion in [add_parent_without_adjusting_heights] to reach [parent] as a descendant
-     of [child].  In that case, the recursion terminates, because [Node.is_necessary
-     parent].  We then return here and subsequently detect the cycle in
+     of [child]. In that case, the recursion terminates, because
+     [Node.is_necessary parent]. We then return here and subsequently detect the cycle in
      [adjust_heights]. *)
   add_parent_without_adjusting_heights ~child ~parent ~child_index;
   (* We adjust heights so that we ensure there are no cycles before calling
@@ -680,7 +678,7 @@ let rec recompute : type a. a Node.t -> unit =
   match node.kind with
   | Array_fold array_fold -> maybe_change_value node (Array_fold.compute array_fold)
   | At { at; clock; _ } ->
-    (* It is a bug if we try to compute an [At] node after [at].  [advance_clock] was
+    (* It is a bug if we try to compute an [At] node after [at]. [advance_clock] was
        supposed to convert it to a [Const] at the appropriate time. *)
     if debug then assert (Time_ns.( > ) at (now clock));
     maybe_change_value node Before
@@ -694,14 +692,14 @@ let rec recompute : type a. a Node.t -> unit =
        ; all_nodes_created_on_rhs = old_all_nodes_created_on_rhs
        ; _
        } as bind) ->
-    (* We clear [all_nodes_created_on_rhs] so it will hold just the nodes created by
-       this call to [f]. *)
+    (* We clear [all_nodes_created_on_rhs] so it will hold just the nodes created by this
+       call to [f]. *)
     bind.all_nodes_created_on_rhs <- Uopt.get_none ();
     let rhs = run_with_scope t rhs_scope ~f:(fun () -> f (Node.value_exn lhs)) in
     bind.rhs <- Uopt.some rhs;
-    (* Anticipate what [maybe_change_value] will do, to make sure Bind_main is stale
-       right away. This way, if the new child is invalid, we'll satisfy the invariant
-       saying that [needs_to_be_computed bind_main] in [propagate_invalidity] *)
+    (* Anticipate what [maybe_change_value] will do, to make sure Bind_main is stale right
+       away. This way, if the new child is invalid, we'll satisfy the invariant saying
+       that [needs_to_be_computed bind_main] in [propagate_invalidity] *)
     node.changed_at <- t.stabilization_num;
     change_child
       ~parent:main
@@ -711,10 +709,10 @@ let rec recompute : type a. a Node.t -> unit =
     if Uopt.is_some old_rhs
     then (
       (* We invalidate after [change_child], because invalidation changes the [kind] of
-         nodes to [Invalid], which means that we can no longer visit their children.
-         Also, the [old_rhs] nodes are typically made unnecessary by [change_child], and
-         so by invalidating afterwards, we will not waste time adding them to the
-         recompute heap and then removing them. *)
+         nodes to [Invalid], which means that we can no longer visit their children. Also,
+         the [old_rhs] nodes are typically made unnecessary by [change_child], and so by
+         invalidating afterwards, we will not waste time adding them to the recompute heap
+         and then removing them. *)
       if t.bind_lhs_change_should_invalidate_rhs
       then invalidate_nodes_created_on_rhs old_all_nodes_created_on_rhs
       else
@@ -768,8 +766,7 @@ let rec recompute : type a. a Node.t -> unit =
   | Map (f, n1) -> maybe_change_value node (f (Node.value_exn n1))
   | Snapshot { at; before; clock; _ } ->
     (* It is a bug if we try to compute a [Snapshot] and the alarm should have fired.
-       [advance_clock] was supposed to convert it to a [Freeze] at the appropriate
-       time. *)
+       [advance_clock] was supposed to convert it to a [Freeze] at the appropriate time. *)
     if debug then assert (Time_ns.( > ) at (now clock));
     maybe_change_value node before
   | Step_function ({ child; clock; _ } as step_function_node) ->
@@ -1019,11 +1016,11 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
              ~new_value
          | _ -> ());
         if debug then assert (Node.needs_to_be_computed parent);
-        (* We don't do the [can_recompute_now] optimization.  Since most nodes only have
-           one parent, it is not probably not a big loss.  If we did it anyway, we'd
-           have to be careful, because while we iterate over the list of parents, we
-           would execute them, and in particular we can execute lhs-change nodes who can
-           change the structure of the list of parents we iterate on.  Think about:
+        (* We don't do the [can_recompute_now] optimization. Since most nodes only have
+           one parent, it is not probably not a big loss. If we did it anyway, we'd have
+           to be careful, because while we iterate over the list of parents, we would
+           execute them, and in particular we can execute lhs-change nodes who can change
+           the structure of the list of parents we iterate on. Think about:
 
            {[
              lhs >>= fun b -> if b then lhs >>| Fn.id else const b
@@ -1031,8 +1028,8 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
 
            If the optimization kicks in when we propagate change to the parents of [lhs]
            (which changes from [true] to [false]), we could execute the [lhs-change]
-           first, which would make disconnect the [map] node from [lhs].  And then we
-           would execute the second child of the [lhs], which doesn't exist anymore and
+           first, which would make disconnect the [map] node from [lhs]. And then we would
+           execute the second child of the [lhs], which doesn't exist anymore and
            incremental would segfault (there may be a less naive way of making this work
            though). *)
         if not (Node.is_in_recompute_heap parent)
@@ -1080,9 +1077,9 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
           | Unordered_array_fold _
           | Expert _ -> false
           (* We can immediately recompute [parent] if no other node needs to be stable
-             before computing it.  If [parent] has a single child (i.e. [node]), then
-             this amounts to checking that [parent] won't be invalidated, i.e. that
-             [parent]'s scope has already stabilized. *)
+             before computing it. If [parent] has a single child (i.e. [node]), then this
+             amounts to checking that [parent] won't be invalidated, i.e. that [parent]'s
+             scope has already stabilized. *)
           | Bind_lhs_change _ -> node.height > Scope.height parent.created_in
           | Freeze _ -> node.height > Scope.height parent.created_in
           | If_test_change _ -> node.height > Scope.height parent.created_in
@@ -1090,7 +1087,7 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
           | Map _ -> node.height > Scope.height parent.created_in
           | Step_function _ -> node.height > Scope.height parent.created_in
           (* For these, we need to check that the "_change" child has already been
-             evaluated (if needed).  If so, this also implies:
+             evaluated (if needed). If so, this also implies:
 
              {[
                node.height > Scope.height parent.created_in
@@ -1234,7 +1231,7 @@ let add_new_observers t =
         (Uopt.unsafe_value old_observers).prev_in_observing <- Uopt.some internal_observer);
       observing.observers <- Uopt.some internal_observer;
       (* By adding [internal_observer] to [observing.observers], we may have added
-         on-update handlers to [observing].  We need to handle [observing] after this
+         on-update handlers to [observing]. We need to handle [observing] after this
          stabilization to give those handlers a chance to run. *)
       handle_after_stabilization observing;
       if debug then assert (Node.is_necessary observing);
@@ -1412,7 +1409,7 @@ let do_one_step_of_stabilize t : Step_result.t =
     (match t.status with
      | Stabilize_previously_raised _ ->
        (* If stabilization has already raised, then [exn] is merely a notification of this
-          fact, rather than the original exception itself.  We should just propagate [exn]
+          fact, rather than the original exception itself. We should just propagate [exn]
           forward; calling [raise_during_stabilization] would store [exn] as the exception
           that initially raised during stabilization. *)
        raise exn
@@ -1441,7 +1438,7 @@ let create_var t ?(use_current_scope = false) value =
   var
 ;;
 
-(* A [const] value could come from the right-hand side of an outer bind.  So, we create a
+(* A [const] value could come from the right-hand side of an outer bind. So, we create a
    [const] node in the current scope, not in [Scope.top]. *)
 let const t a = create_node t (Const a)
 let map (n : _ Node.t) ~f = create_node n.state (Map (f, n))
@@ -1518,9 +1515,9 @@ let depend_on input ~depend_on =
 ;;
 
 let necessary_if_alive input =
-  (* If [output] is alive, then [observer] is alive, then [input] is necessary.  If
+  (* If [output] is alive, then [observer] is alive, then [input] is necessary. If
      [output] is unnecessary, then [output] is not a parent of [input], and thus
-     [output]'s liveness is dependent solely on user code.  And in particular, if [output]
+     [output]'s liveness is dependent solely on user code. And in particular, if [output]
      dies, then [observer] will be finalized, and then upon the next stabilization,
      [input] will become unnecessary (at least with respect to [output]). *)
   let observer = create_observer input in
@@ -1548,7 +1545,7 @@ let bind (lhs : _ Node.t) ~f =
     }
   in
   (* We set [lhs_change] to never cutoff so that whenever [lhs] changes, [main] is
-     recomputed.  This is necessary to handle cases where [f] returns an existing stable
+     recomputed. This is necessary to handle cases where [f] returns an existing stable
      node, in which case the [lhs_change] would be the only thing causing [main] to be
      stale. *)
   Node.set_cutoff lhs_change Cutoff.never;
@@ -1617,7 +1614,7 @@ let memoize_fun_by_key
   f
   =
   (* Here's an explanation of why we get [t.current_scope] here, and then call
-     [within_scope] below.  Consider this (impossible) alternate implementation of
+     [within_scope] below. Consider this (impossible) alternate implementation of
      [memoize_fun_by_key]:
 
      {[
@@ -1628,7 +1625,7 @@ let memoize_fun_by_key
        stage (fun key -> Hashtbl.find_exn table (project_key a))
      ]}
 
-     This implementation doesn't use [current_scope] or [within_scope].  All calls to [f]
+     This implementation doesn't use [current_scope] or [within_scope]. All calls to [f]
      naturally occur in [t.current_scope].
 
      Such an implementation is impossible because we do not have [all_possible_a_values].
@@ -1828,7 +1825,7 @@ let snapshot clock value_at ~at ~before =
     let snapshot = { Snapshot.main; at; before; value_at; clock } in
     Node.set_kind main (Snapshot snapshot);
     (* Unlike other time-based incrementals, a snapshot is created in [Scope.top] and
-       cannot be invalidated by its scope.  Thus, there is no need to keep track of the
+       cannot be invalidated by its scope. Thus, there is no need to keep track of the
        alarm that is added, because it will never need to be removed early. *)
     ignore (add_alarm clock ~at (Alarm_value.create (Snapshot snapshot)) : Alarm.t);
     Ok main)
@@ -2001,9 +1998,9 @@ module Expert = struct
     | Some current -> current
   ;;
 
-  (* Note that the two following functions are not symmetric of one another: in [let y =
-     map x], [x] is always a child of [y] (assuming [x] doesn't become invalid) but [y] in
-     only a parent of [x] if y is necessary. *)
+  (* Note that the two following functions are not symmetric of one another: in
+     [let y = map x], [x] is always a child of [y] (assuming [x] doesn't become invalid)
+     but [y] in only a parent of [x] if y is necessary. *)
   let assert_currently_running_node_is_child state node name =
     let (T current) = currently_running_node_exn state name in
     if not (Node.has_child node ~child:current)

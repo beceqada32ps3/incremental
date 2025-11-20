@@ -345,11 +345,11 @@ let if_branch_child_index = 1
 let join_rhs_child_index = 1
 
 (* We do not implement the time-based nodes ([At], [At_intervals], [Snapshot],
-   [Step_function]) as parents of the current-time node for performance reasons.  We don't
+   [Step_function]) as parents of the current-time node for performance reasons. We don't
    want all such nodes to be recomputed whenever the time changes, which would be horribly
-   inneficient.  Instead, we only want them to be recomputed at the "right" time,
-   i.e. when time passes some threshold relevant to them.  We do this via scheduling
-   alarms at those thresholds. *)
+   inneficient. Instead, we only want them to be recomputed at the "right" time, i.e. when
+   time passes some threshold relevant to them. We do this via scheduling alarms at those
+   thresholds. *)
 let iteri_children (type a) (t : a t) ~(f : int -> Node.Packed.t -> unit) : unit =
   match t with
   | Array_fold { children; _ } ->
@@ -585,7 +585,7 @@ let iteri_children (type a) (t : a t) ~(f : int -> Node.Packed.t -> unit) : unit
 ;;
 
 (* [slow_get_child] is only used by [Node.invariant], so we don't mind using [with_return]
-   and [iteri_children].  If we ever need a fast [get_child], we coded it in rev
+   and [iteri_children]. If we ever need a fast [get_child], we coded it in rev
    48dbfd03c9c5. *)
 let slow_get_child : type a. a t -> index:_ -> Node.Packed.t =
   fun t ~index ->
