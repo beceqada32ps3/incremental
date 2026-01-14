@@ -258,8 +258,8 @@ let%expect_test "different recomputed_at and changed_at" =
        It is used to detect when [t]'s parents are stale and (because all parents are
        necessary) need to be recomputed.
 
-     The modulo node was "recomputed" (3 % 2) and (1 % 2), but it did not "change" as the resulting
-     value was the "same" according to its phys_equal cutoff. *)
+     The modulo node was "recomputed" (3 % 2) and (1 % 2), but it did not "change" as the
+     resulting value was the "same" according to its phys_equal cutoff. *)
   let (_ : _ Incr.Observer.t) = Sys.opaque_identity mult_observer in
   print_nodes [ mult ] Incr.pack print_computation_info;
   [%expect

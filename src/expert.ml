@@ -7,7 +7,7 @@ type 'a edge = 'a Types.Expert.edge =
   ; on_change : 'a -> unit
   ; (* [index] is defined whenever the [edge] is in the [children] of some [t]. Then it is
        the index of this [edge] in that [children] array. It might seem redundant with all
-       the other indexes we have, but it is necessary to remove children.  The index may
+       the other indexes we have, but it is necessary to remove children. The index may
        change as sibling children are removed. *)
     mutable index : int Uopt.t
   }
@@ -21,19 +21,19 @@ type 'a t = 'a Types.Expert.t =
   ; on_observability_change : is_now_observable:bool -> unit
   ; mutable children : packed_edge Uopt.t Uniform_array.t
   ; mutable num_children : int
-  ; (* When set, makes the node of [t] stale.  It is set when the set of children changes.
+  ; (* When set, makes the node of [t] stale. It is set when the set of children changes.
        Otherwise the normal check of staleness (comparing the [changed_at] field of
        children and the [recomputed_at] field for the node of [t]) would not be enough.
        This plays a role similar to the cutoff of [Never] for the lhs-change of binds, but
        we don't have a special child. *)
     mutable force_stale : bool
-  ; (* The number of invalid children that point to us.  Used to determine whether the node
-       of [t] needs to invalidated, without iterating over all the children.  This is not
+  ; (* The number of invalid children that point to us. Used to determine whether the node
+       of [t] needs to invalidated, without iterating over all the children. This is not
        needed for other nodes, because there are no other nodes that have a potentially
        large and dynamic set of children. *)
     mutable num_invalid_children : int
-  ; (* Whether we will fire the [on_change] callbacks for all children when the node of [t]
-       itself runs.  Used to make sure we rerun everything after [t] switches from
+  ; (* Whether we will fire the [on_change] callbacks for all children when the node of
+       [t] itself runs. Used to make sure we rerun everything after [t] switches from
        unobservable and back to observable. *)
     mutable will_fire_all_callbacks : bool
   }
@@ -114,7 +114,7 @@ let add_child_edge t packed_edge =
   t.num_children <- t.num_children + 1;
   t.force_stale <- true;
   (* We will bump the number of invalid children if necessary when connecting child and
-     parent.  Same thing for running the [on_change] callbacks. *)
+     parent. Same thing for running the [on_change] callbacks. *)
   new_child_index
 ;;
 
@@ -164,8 +164,7 @@ let observability_change t ~is_now_observable =
   then (
     t.will_fire_all_callbacks <- true;
     (* If we don't reset num_invalid_children, we would double count them: just imagine
-       what happens we if reconnect/disconnect/reconnect/disconnect with an invalid
-       child. *)
+       what happens we if reconnect/disconnect/reconnect/disconnect with an invalid child. *)
     t.num_invalid_children <- 0)
 ;;
 
@@ -174,7 +173,7 @@ let run_edge_callback t ~child_index =
   then (
     let (E r) = Uopt.value_exn (Uniform_array.get t.children child_index) in
     (* This value is not necessarily set, because we try to run this when connecting the
-       node to its children, which could be before they have run even once.  Also the node
+       node to its children, which could be before they have run even once. Also the node
        could be invalid. *)
     if Uopt.is_some r.child.value_opt
     then r.on_change (Uopt.unsafe_value r.child.value_opt))

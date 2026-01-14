@@ -197,9 +197,9 @@ module Generic = struct
     let get_default_timing_wheel_config () = default_timing_wheel_config
 
     let create state ?(timing_wheel_config = default_timing_wheel_config) ~start () =
-      (* Make sure [start] is rounded to the nearest microsecond.  Otherwise, if you
-         feed [Clock.now ()] to a time function, it can be rounded down to a time in
-         the past, causing errors. *)
+      (* Make sure [start] is rounded to the nearest microsecond. Otherwise, if you feed
+         [Clock.now ()] to a time function, it can be rounded down to a time in the past,
+         causing errors. *)
       let start =
         Time_ns.of_time_float_round_nearest_microsecond
           (Time_ns.to_time_float_round_nearest_microsecond start)
@@ -262,7 +262,7 @@ module Generic = struct
   ;;
 
   (* We override [sexp_of_t] to show just the value, rather than the internal
-     representation.  We only show the value if it is necessary and valid. *)
+     representation. We only show the value if it is necessary and valid. *)
   let sexp_of_t sexp_of_a t =
     if not (is_valid t)
     then "<invalid>" |> [%sexp_of: string]

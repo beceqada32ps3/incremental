@@ -116,9 +116,9 @@ let make_node ~(node : Node.t) ~extra_attrs ~(render_target : Render_target.t) =
        (Dot_user_info.to_dot info))
 ;;
 
-(* The parameters' names reflect the ordering of these nodes in the [Incr] graph where
-   the children of a node are the inputs (e.g. a Var would be the child of a Map), but it
-   seems more intuitive to visualize it in the opposite direction*)
+(* The parameters' names reflect the ordering of these nodes in the [Incr] graph where the
+   children of a node are the inputs (e.g. a Var would be the child of a Map), but it
+   seems more intuitive to visualize it in the opposite direction *)
 let edge ~from ~to_ = Text_block.textf {|%s -> %s|} (node_name to_) (node_name from)
 
 let make_edges ~(nodes : Node.t list) ~desired_nodes =

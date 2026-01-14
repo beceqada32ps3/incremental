@@ -75,8 +75,8 @@ let create ~init ~f ~update ~full_compute_every_n_changes ~children ~main =
   ; main
   ; fold_value =
       Uopt.get_none ()
-      (* We make [num_changes_since_last_full_compute = full_compute_every_n_changes]
-     so that there will be a full computation the next time the node is computed. *)
+      (* We make [num_changes_since_last_full_compute = full_compute_every_n_changes] so
+         that there will be a full computation the next time the node is computed. *)
   ; num_changes_since_last_full_compute = full_compute_every_n_changes
   }
 ;;

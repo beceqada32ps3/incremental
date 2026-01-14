@@ -3,8 +3,7 @@ open! Import
 
 type 'a t =
   (* We specialize some cutoffs to avoid an indirect function call; in particular we
-     specialize the default (and hence overwhelmingly common) case of physical
-     equality. *)
+     specialize the default (and hence overwhelmingly common) case of physical equality. *)
   | Always
   | Never
   | Phys_equal
