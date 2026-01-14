@@ -935,8 +935,8 @@ struct
 
       let%expect_test _ =
         (* nested var sets *)
-        (* We model a simple ETF that initially consists of 100 shares of IBM and
-             200 shares of microsoft with an implicit divisor of 1. *)
+        (* We model a simple ETF that initially consists of 100 shares of IBM and 200
+           shares of microsoft with an implicit divisor of 1. *)
         (* the last trade prices of two stocks *)
         let ibm = Var.create_ [%here] 50. in
         let msft = Var.create_ [%here] 20. in
@@ -1455,16 +1455,16 @@ struct
       (* one for the [const], one for the [freeze] *)
 
       (* TEST_UNIT = (\* freeze nodes leak memory (and forces spurious computations) until
-         *                they freeze *\)
-         *   let c = const () in
-         *   for i = 0 to 100_000_000 do
-         *     ignore (freeze c ~when_:(fun () -> false) : unit t);
-         *     if i mod 1000 = 0 then begin
-         *       Printf.printf "num parents %d\n%!" ((Obj.magic c : int array).(7));
-         *       stabilize_ [%here];
-         *     end
-         *   done;
-         * ;; *)
+       *                they freeze *\)
+       *   let c = const () in
+       *   for i = 0 to 100_000_000 do
+       *     ignore (freeze c ~when_:(fun () -> false) : unit t);
+       *     if i mod 1000 = 0 then begin
+       *       Printf.printf "num parents %d\n%!" ((Obj.magic c : int array).(7));
+       *       stabilize_ [%here];
+       *     end
+       *   done;
+       * ;; *)
 
       let%expect_test _ =
         (* [freeze]ing something that is otherwise unnecessary. *)

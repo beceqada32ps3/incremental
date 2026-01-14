@@ -468,11 +468,11 @@ and invalidate_nodes_created_on_rhs node =
 ;;
 
 (* When [not t.bind_lhs_change_should_invalidate_rhs] and a bind's lhs changes, we move
-   nodes created on the bind's rhs up to its parent bind, as opposed to [Scope.Top].  This
+   nodes created on the bind's rhs up to its parent bind, as opposed to [Scope.Top]. This
    maintains their dependence on valid bind left-hand sides, and keeps them higher in the
-   graph.  This in turn means that we will continue to compute those nodes after the
-   parent bind's lhs, which gives them more of a chance to become unnecessary and not be
-   computed should the parent bind's lhs change. *)
+   graph. This in turn means that we will continue to compute those nodes after the parent
+   bind's lhs, which gives them more of a chance to become unnecessary and not be computed
+   should the parent bind's lhs change. *)
 let rescope_nodes_created_on_rhs _t (first_node_on_rhs : Node.Packed.t Uopt.t) ~new_scope =
   let r = ref first_node_on_rhs in
   while Uopt.is_some !r do

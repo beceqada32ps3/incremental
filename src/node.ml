@@ -11,7 +11,7 @@ type 'a t = 'a Types.Node.t =
   ; state : (Types.State.t[@sexp.opaque])
   ; (* The fields from [recomputed_at] to [created_in] are grouped together and are in the
        same order as they are used by [State.recompute] This has a positive performance
-       impact due to cache effects.  Don't change the order of these nodes without
+       impact due to cache effects. Don't change the order of these nodes without
        performance testing. *)
     (* [recomputed_at] is the last stabilization when [t]'s value was recomputed, even if
        it was cut off. *)
