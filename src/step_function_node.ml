@@ -6,9 +6,9 @@ module Node = Types.Node
 
 type 'a t = 'a Types.Step_function_node.t =
   { main : 'a Node.t
-  ; mutable child : 'a Step_function.t Node.t Uopt.t
+  ; mutable child : 'a Step_function.t Node.t or_null
   ; mutable extracted_step_function_from_child_at : Stabilization_num.t
-  ; mutable value : 'a Uopt.t
+  ; mutable value : 'a or_null
   ; mutable upcoming_steps : (Time_ns.t * 'a) Sequence.t
   ; mutable alarm : Alarm.t
   ; mutable alarm_value : (Alarm_value.t[@sexp.opaque])
@@ -31,7 +31,7 @@ let invariant invariant_a t =
            | _ -> assert false))
       ~child:ignore
       ~extracted_step_function_from_child_at:ignore
-      ~value:(check (Uopt.invariant invariant_a))
+      ~value:(check (Or_null.invariant invariant_a))
       ~upcoming_steps:ignore
       ~alarm:(check Alarm.invariant)
       ~alarm_value:
@@ -47,8 +47,8 @@ let rec advance_internal t ~to_ a1 steps =
   | Some ((step_at, a2), steps2) when Time_ns.( >= ) to_ step_at ->
     advance_internal t ~to_ a2 steps2
   | _ ->
-    t.value <- Uopt.some a1;
+    t.value <- This a1;
     t.upcoming_steps <- steps
 ;;
 
-let advance t ~to_ = advance_internal t ~to_ (Uopt.value_exn t.value) t.upcoming_steps
+let advance t ~to_ = advance_internal t ~to_ (Or_null.value_exn t.value) t.upcoming_steps

@@ -4,7 +4,7 @@ open! Import
 module Dependency = struct
   type 'a t = 'a Expert.edge [@@deriving sexp_of]
 
-  let create ?(on_change = ignore) child : _ t = { child; on_change; index = Uopt.none }
+  let create ?(on_change = ignore) child : _ t = { child; on_change; index = Null }
 
   let value (t : _ t) =
     let state = t.child.state in

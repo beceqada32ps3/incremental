@@ -6,6 +6,7 @@ bug-reports: "https://github.com/janestreet/incremental/issues"
 dev-repo: "git+https://github.com/janestreet/incremental.git"
 doc: "https://ocaml.janestreet.com/ocaml-core/latest/doc/incremental/index.html"
 license: "MIT"
+x-maintenance-intent: ["(latest)"]
 build: [
   ["dune" "build" "-p" name "-j" jobs]
 ]
@@ -18,7 +19,6 @@ depends: [
   "ppx_jane"
   "ppx_optcomp"
   "textutils_kernel"
-  "uopt"
   "dune"                 {>= "3.17.0"}
 ]
 available: arch != "arm32" & arch != "x86_32"

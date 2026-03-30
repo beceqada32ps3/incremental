@@ -7,7 +7,7 @@ type 'a t = 'a Types.Join.t =
   { main : 'a Node.t
   ; lhs : 'a Node.t Node.t
   ; lhs_change : unit Node.t
-  ; mutable rhs : 'a Node.t Uopt.t
+  ; mutable rhs : 'a Node.t or_null
   }
 [@@deriving fields ~iterators:iter, sexp_of]
 

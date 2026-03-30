@@ -36,11 +36,11 @@ type 'a t = 'a Types.Internal_observer.t =
   ; observing : 'a Node.t
   ; mutable on_update_handlers : 'a On_update_handler.t list
   ; (* [{prev,next}_in_all] doubly link all observers in [state.all_observers]. *)
-    mutable prev_in_all : Packed_.t Uopt.t
-  ; mutable next_in_all : Packed_.t Uopt.t
+    mutable prev_in_all : Packed_.t or_null
+  ; mutable next_in_all : Packed_.t or_null
   ; (* [{prev,next}_in_observing] doubly link all observers of [observing]. *)
-    mutable prev_in_observing : ('a t[@sexp.opaque]) Uopt.t
-  ; mutable next_in_observing : ('a t[@sexp.opaque]) Uopt.t
+    mutable prev_in_observing : ('a t[@sexp.opaque]) or_null
+  ; mutable next_in_observing : ('a t[@sexp.opaque]) or_null
   }
 [@@deriving fields ~getters ~iterators:iter, sexp_of]
 
@@ -72,46 +72,48 @@ let invariant invariant_a t =
         (check (fun prev_in_all ->
            (match t.state with
             | In_use | Disallowed -> ()
-            | Created | Unlinked -> assert (Uopt.is_none prev_in_all));
-           if Uopt.is_some prev_in_all
+            | Created | Unlinked -> assert (Or_null.is_null prev_in_all));
+           if Or_null.is_this prev_in_all
            then
              assert (
                same_as_packed
                  t
-                 (Uopt.value_exn (Packed_.next_in_all (Uopt.value_exn prev_in_all))))))
+                 (Or_null.value_exn (Packed_.next_in_all (Or_null.value_exn prev_in_all))))))
       ~next_in_all:
         (check (fun next_in_all ->
            (match t.state with
             | In_use | Disallowed -> ()
-            | Created | Unlinked -> assert (Uopt.is_none next_in_all));
-           if Uopt.is_some next_in_all
+            | Created | Unlinked -> assert (Or_null.is_null next_in_all));
+           if Or_null.is_this next_in_all
            then
              assert (
                same_as_packed
                  t
-                 (Uopt.value_exn (Packed_.prev_in_all (Uopt.value_exn next_in_all))))))
+                 (Or_null.value_exn (Packed_.prev_in_all (Or_null.value_exn next_in_all))))))
       ~prev_in_observing:
         (check (fun prev_in_observing ->
            (match t.state with
             | In_use | Disallowed -> ()
-            | Created | Unlinked -> assert (Uopt.is_none prev_in_observing));
-           if Uopt.is_some prev_in_observing
+            | Created | Unlinked -> assert (Or_null.is_null prev_in_observing));
+           if Or_null.is_this prev_in_observing
            then
              assert (
                phys_equal
                  t
-                 (Uopt.value_exn (next_in_observing (Uopt.value_exn prev_in_observing))))))
+                 (Or_null.value_exn
+                    (next_in_observing (Or_null.value_exn prev_in_observing))))))
       ~next_in_observing:
         (check (fun next_in_observing ->
            (match t.state with
             | In_use | Disallowed -> ()
-            | Created | Unlinked -> assert (Uopt.is_none next_in_observing));
-           if Uopt.is_some next_in_observing
+            | Created | Unlinked -> assert (Or_null.is_null next_in_observing));
+           if Or_null.is_this next_in_observing
            then
              assert (
                phys_equal
                  t
-                 (Uopt.value_exn (prev_in_observing (Uopt.value_exn next_in_observing)))))))
+                 (Or_null.value_exn
+                    (prev_in_observing (Or_null.value_exn next_in_observing)))))))
 ;;
 
 let value_exn t =
@@ -121,9 +123,9 @@ let value_exn t =
     failwiths "Observer.value_exn called after disallow_future_use" t [%sexp_of: _ t]
   | In_use ->
     let uopt = t.observing.value_opt in
-    if Uopt.is_none uopt
+    if Or_null.is_null uopt
     then failwiths "attempt to get value of an invalid node" t [%sexp_of: _ t];
-    Uopt.unsafe_value uopt
+    Or_null.unsafe_value uopt
 ;;
 
 let on_update_exn t on_update_handler =
@@ -145,12 +147,12 @@ let on_update_exn t on_update_handler =
 let unlink_from_observing t =
   let prev = t.prev_in_observing in
   let next = t.next_in_observing in
-  t.prev_in_observing <- Uopt.get_none ();
-  t.next_in_observing <- Uopt.get_none ();
-  if Uopt.is_some next then (Uopt.unsafe_value next).prev_in_observing <- prev;
-  if Uopt.is_some prev then (Uopt.unsafe_value prev).next_in_observing <- next;
+  t.prev_in_observing <- Null;
+  t.next_in_observing <- Null;
+  if Or_null.is_this next then (Or_null.unsafe_value next).prev_in_observing <- prev;
+  if Or_null.is_this prev then (Or_null.unsafe_value prev).next_in_observing <- next;
   let observing = t.observing in
-  if phys_equal t (Uopt.value_exn observing.observers) then observing.observers <- next;
+  if phys_equal t (Or_null.value_exn observing.observers) then observing.observers <- next;
   observing.num_on_update_handlers
   <- observing.num_on_update_handlers - List.length t.on_update_handlers;
   t.on_update_handlers <- []
@@ -159,10 +161,10 @@ let unlink_from_observing t =
 let unlink_from_all t =
   let prev = t.prev_in_all in
   let next = t.next_in_all in
-  t.prev_in_all <- Uopt.get_none ();
-  t.next_in_all <- Uopt.get_none ();
-  if Uopt.is_some next then Packed_.set_prev_in_all (Uopt.unsafe_value next) prev;
-  if Uopt.is_some prev then Packed_.set_next_in_all (Uopt.unsafe_value prev) next
+  t.prev_in_all <- Null;
+  t.next_in_all <- Null;
+  if Or_null.is_this next then Packed_.set_prev_in_all (Or_null.unsafe_value next) prev;
+  if Or_null.is_this prev then Packed_.set_next_in_all (Or_null.unsafe_value prev) next
 ;;
 
 let unlink t =

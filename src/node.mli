@@ -36,9 +36,9 @@ module Packed : sig
       contained within it. The recompute heap uses this with [next_in_recompute_heap], and
       the adjust-heights heap uses this with [next_in_adjust_heights_heap]. *)
   module As_list (M : sig
-      val next : t -> t Uopt.t
+      val next : t -> t or_null
     end) : sig
-    type t = Types.Node.Packed.t Uopt.t [@@deriving sexp_of]
+    type t = Types.Node.Packed.t or_null [@@deriving sexp_of]
 
     include Invariant.S with type t := t
 
@@ -119,8 +119,8 @@ val needs_to_be_computed : _ t -> bool
 
 (** Getting the value of a node.
 
-    [value_exn t] raises iff [Uopt.is_none t.value_opt]. [unsafe_value t] is safe iff
-    [Uopt.is_some t.value_opt]. *)
+    [value_exn t] raises iff [Or_null.is_null t.value_opt]. [unsafe_value t] is safe iff
+    [Or_null.is_this t.value_opt]. *)
 val value_exn : 'a t -> 'a
 
 val unsafe_value : 'a t -> 'a

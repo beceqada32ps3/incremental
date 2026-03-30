@@ -11,7 +11,8 @@ module Nodes_by_height = struct
   (* We display the smallest prefix of [nodes_by_height] that includes all nodes. *)
   let sexp_of_t t =
     let max_nonempty_index = ref (-1) in
-    Uniform_array.iteri t ~f:(fun i l -> if Uopt.is_some l then max_nonempty_index := i);
+    Uniform_array.iteri t ~f:(fun i l ->
+      if Or_null.is_this l then max_nonempty_index := i);
     Uniform_array.sub t ~pos:0 ~len:(!max_nonempty_index + 1) |> [%sexp_of: t]
   ;;
 end
@@ -41,7 +42,7 @@ let invariant t =
            assert (height_lower_bound >= 0);
            assert (height_lower_bound <= Uniform_array.length t.nodes_by_height);
            for height = 0 to height_lower_bound - 1 do
-             assert (Uopt.is_none (Uniform_array.get t.nodes_by_height height))
+             assert (Or_null.is_null (Uniform_array.get t.nodes_by_height height))
            done))
       ~nodes_by_height:
         (check (fun nodes_by_height ->
@@ -52,14 +53,14 @@ let invariant t =
 ;;
 
 let create_nodes_by_height ~max_height_allowed =
-  Uniform_array.create ~len:(max_height_allowed + 1) (Uopt.get_none ())
+  Uniform_array.create ~len:(max_height_allowed + 1) Null
 ;;
 
 let set_max_height_allowed t max_height_allowed =
   if debug
   then
     for i = max_height_allowed + 1 to Uniform_array.length t.nodes_by_height - 1 do
-      assert (Uopt.is_none (Uniform_array.get t.nodes_by_height i))
+      assert (Or_null.is_null (Uniform_array.get t.nodes_by_height i))
     done;
   let src = t.nodes_by_height in
   let dst = create_nodes_by_height ~max_height_allowed in
@@ -80,17 +81,17 @@ let create ~max_height_allowed =
   }
 ;;
 
-let set_next (prev : Node.Packed.t Uopt.t) ~next =
-  if Uopt.is_some prev
+let set_next (prev : Node.Packed.t or_null) ~next =
+  if Or_null.is_this prev
   then (
-    let (T prev) = Uopt.unsafe_value prev in
+    let (T prev) = Or_null.unsafe_value prev in
     prev.next_in_recompute_heap <- next)
 ;;
 
-let set_prev (next : Node.Packed.t Uopt.t) ~prev =
-  if Uopt.is_some next
+let set_prev (next : Node.Packed.t or_null) ~prev =
+  if Or_null.is_this next
   then (
-    let (T next) = Uopt.unsafe_value next in
+    let (T next) = Or_null.unsafe_value next in
     next.prev_in_recompute_heap <- prev)
 ;;
 
@@ -100,20 +101,20 @@ let link (type a) t (node : a Node.t) =
   node.height_in_recompute_heap <- height;
   let next = Uniform_array.get t.nodes_by_height height in
   node.next_in_recompute_heap <- next;
-  set_prev next ~prev:(Uopt.some (Node.Packed.T node));
-  Uniform_array.unsafe_set t.nodes_by_height height (Uopt.some (Node.Packed.T node))
+  set_prev next ~prev:(This (Node.Packed.T node));
+  Uniform_array.unsafe_set t.nodes_by_height height (This (Node.Packed.T node))
 ;;
 
 let unlink (type a) t (node : a Node.t) =
   let prev = node.prev_in_recompute_heap in
   let next = node.next_in_recompute_heap in
   if phys_same
-       (Uopt.some node)
+       (This node)
        (Uniform_array.get t.nodes_by_height node.height_in_recompute_heap)
   then Uniform_array.unsafe_set t.nodes_by_height node.height_in_recompute_heap next;
   set_prev next ~prev;
   set_next prev ~next;
-  node.prev_in_recompute_heap <- Uopt.get_none ()
+  node.prev_in_recompute_heap <- Null
 ;;
 
 (* We don't set [node.next_in_recompute_heap] here, but rather after calling [unlink]. *)
@@ -134,7 +135,7 @@ let remove (type a) t (node : a Node.t) =
   then
     failwiths "incorrect [remove] of node from recompute heap" node [%sexp_of: _ Node.t];
   unlink t node;
-  node.next_in_recompute_heap <- Uopt.get_none ();
+  node.next_in_recompute_heap <- Null;
   node.height_in_recompute_heap <- -1;
   t.length <- t.length - 1
 ;;
@@ -154,7 +155,7 @@ let min_height t =
   then t.height_lower_bound <- Uniform_array.length t.nodes_by_height
   else (
     let nodes_by_height = t.nodes_by_height in
-    while Uopt.is_none (Uniform_array.get nodes_by_height t.height_lower_bound) do
+    while Or_null.is_null (Uniform_array.get nodes_by_height t.height_lower_bound) do
       t.height_lower_bound <- t.height_lower_bound + 1
     done);
   t.height_lower_bound
@@ -164,7 +165,7 @@ let remove_min t : Node.Packed.t =
   if debug then assert (not (is_empty t));
   let nodes_by_height = t.nodes_by_height in
   let node = ref (Uniform_array.get nodes_by_height t.height_lower_bound) in
-  while Uopt.is_none !node do
+  while Or_null.is_null !node do
     t.height_lower_bound <- t.height_lower_bound + 1;
     if debug && t.height_lower_bound >= Uniform_array.length t.nodes_by_height
     then
@@ -174,13 +175,13 @@ let remove_min t : Node.Packed.t =
         [%sexp_of: t];
     node := Uniform_array.get nodes_by_height t.height_lower_bound
   done;
-  let (T node) = Uopt.unsafe_value !node in
+  let (T node) = Or_null.unsafe_value !node in
   node.height_in_recompute_heap <- -1;
   t.length <- t.length - 1;
   let next = node.next_in_recompute_heap in
   Uniform_array.set t.nodes_by_height t.height_lower_bound next;
-  set_prev next ~prev:(Uopt.get_none ());
-  if debug then assert (Uopt.is_none node.prev_in_recompute_heap);
-  node.next_in_recompute_heap <- Uopt.get_none ();
+  set_prev next ~prev:Null;
+  if debug then assert (Or_null.is_null node.prev_in_recompute_heap);
+  node.next_in_recompute_heap <- Null;
   T node
 ;;

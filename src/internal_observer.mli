@@ -25,6 +25,6 @@ module Packed : sig
 
   include Invariant.S with type t := t
 
-  val next_in_all : t -> t Uopt.t
-  val set_prev_in_all : t -> t Uopt.t -> unit
+  val next_in_all : t -> t or_null
+  val set_prev_in_all : t -> t or_null -> unit
 end

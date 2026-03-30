@@ -11,7 +11,8 @@ module Nodes_by_height = struct
 
   let sexp_of_t t =
     let max_nonempty_index = ref (-1) in
-    Uniform_array.iteri t ~f:(fun i l -> if Uopt.is_some l then max_nonempty_index := i);
+    Uniform_array.iteri t ~f:(fun i l ->
+      if Or_null.is_this l then max_nonempty_index := i);
     Uniform_array.sub t ~pos:0 ~len:(!max_nonempty_index + 1) |> [%sexp_of: t]
   ;;
 
@@ -26,9 +27,7 @@ module Nodes_by_height = struct
           then assert (node.height_in_recompute_heap = node.height_in_adjust_heights_heap))))
   ;;
 
-  let create ~max_height_allowed =
-    Uniform_array.create ~len:(max_height_allowed + 1) (Uopt.get_none ())
-  ;;
+  let create ~max_height_allowed = Uniform_array.create ~len:(max_height_allowed + 1) Null
 
   let length t =
     let r = ref 0 in
@@ -59,7 +58,7 @@ let invariant t =
            assert (height_lower_bound >= 0);
            assert (height_lower_bound <= Uniform_array.length t.nodes_by_height);
            for height = 0 to height_lower_bound - 1 do
-             assert (Uopt.is_none (Uniform_array.get t.nodes_by_height height))
+             assert (Or_null.is_null (Uniform_array.get t.nodes_by_height height))
            done))
       ~max_height_seen:
         (check (fun max_height_seen ->
@@ -99,23 +98,25 @@ let add_unless_mem (type a) t (node : a Node.t) =
     node.height_in_adjust_heights_heap <- height;
     t.length <- t.length + 1;
     node.next_in_adjust_heights_heap <- Uniform_array.get t.nodes_by_height height;
-    Uniform_array.unsafe_set t.nodes_by_height height (Uopt.some (Node.Packed.T node)))
+    Uniform_array.unsafe_set t.nodes_by_height height (This (Node.Packed.T node)))
 ;;
 
 let remove_min_exn t : Node.Packed.t =
   if debug && is_empty t
   then failwiths "Adjust_heights_heap.remove_min of empty heap" t [%sexp_of: t];
   let r = ref t.height_lower_bound in
-  while Uopt.is_none (Uniform_array.get t.nodes_by_height !r) do
+  while Or_null.is_null (Uniform_array.get t.nodes_by_height !r) do
     incr r
   done;
   let height = !r in
   t.height_lower_bound <- height;
-  let (T node) = Uopt.unsafe_value (Uniform_array.unsafe_get t.nodes_by_height height) in
+  let (T node) =
+    Or_null.unsafe_value (Uniform_array.unsafe_get t.nodes_by_height height)
+  in
   node.height_in_adjust_heights_heap <- -1;
   t.length <- t.length - 1;
   Uniform_array.unsafe_set t.nodes_by_height height node.next_in_adjust_heights_heap;
-  node.next_in_adjust_heights_heap <- Uopt.get_none ();
+  node.next_in_adjust_heights_heap <- Null;
   T node
 ;;
 
@@ -171,19 +172,20 @@ let adjust_heights
     then Recompute_heap.increase_height recompute_heap child;
     if child.num_parents > 0
     then (
-      let (T parent) = Uopt.value_exn child.parent0 in
+      let (T parent) = Or_null.value_exn child.parent0 in
       ensure_height_requirement t ~original_child ~original_parent ~child ~parent;
       for parent_index = 1 to child.num_parents - 1 do
         let (T parent) =
-          Uopt.value_exn (Uniform_array.get child.parent1_and_beyond (parent_index - 1))
+          Or_null.value_exn
+            (Uniform_array.get child.parent1_and_beyond (parent_index - 1))
         in
         ensure_height_requirement t ~original_child ~original_parent ~child ~parent
       done);
     match child.kind with
     | Bind_lhs_change { all_nodes_created_on_rhs; _ } ->
       let r = ref all_nodes_created_on_rhs in
-      while Uopt.is_some !r do
-        let (T node_on_rhs) = Uopt.unsafe_value !r in
+      while Or_null.is_this !r do
+        let (T node_on_rhs) = Or_null.unsafe_value !r in
         r := node_on_rhs.next_node_in_same_scope;
         if Node.is_necessary node_on_rhs
         then

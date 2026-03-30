@@ -14,13 +14,13 @@ type ('a, 'b) t = ('a, 'b) Bind.t =
   ; lhs_change : unit Node.t
   ; (* [rhs] is initially [none], and after that is [some] of the result of the most
        recent call to [f]. *)
-    mutable rhs : 'b Node.t Uopt.t
+    mutable rhs : 'b Node.t or_null
   ; (* [rhs_scope] is the scope in which [t.f] is run, i.e. it is [Scope.Bind t]. It is
        [mutable] only to avoid a [let rec] during creation. *)
     mutable rhs_scope : Scope.t
   ; (* [all_nodes_created_on_rhs] is the head of the singly-linked list of nodes created
        on the right-hand side of [t], i.e. in [t.rhs_scope]. *)
-    mutable all_nodes_created_on_rhs : Node.Packed.t Uopt.t
+    mutable all_nodes_created_on_rhs : Node.Packed.t or_null
   }
 [@@deriving fields ~iterators:iter, sexp_of]
 
@@ -34,8 +34,8 @@ let is_valid t =
 
 let iter_nodes_created_on_rhs t ~(f : Node.Packed.t -> unit) =
   let r = ref t.all_nodes_created_on_rhs in
-  while Uopt.is_some !r do
-    let (T node_on_rhs) = Uopt.unsafe_value !r in
+  while Or_null.is_this !r do
+    let (T node_on_rhs) = Or_null.unsafe_value !r in
     r := node_on_rhs.next_node_in_same_scope;
     f (T node_on_rhs)
   done

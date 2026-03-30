@@ -363,26 +363,26 @@ let iteri_children (type a) (t : a t) ~(f : int -> Node.Packed.t -> unit) : unit
     (* Various code, e.g. [state.became_necessary], relies on processing [lhs_change]
        before [rhs]. *)
     f 0 (T lhs_change);
-    if Uopt.is_some rhs then f 1 (T (Uopt.unsafe_value rhs))
+    if Or_null.is_this rhs then f 1 (T (Or_null.unsafe_value rhs))
   | Const _ -> ()
   | Expert { children; num_children; _ } ->
     for i = 0 to num_children - 1 do
-      let (Expert.E r) = Uopt.value_exn (Uniform_array.unsafe_get children i) in
+      let (Expert.E r) = Or_null.value_exn (Uniform_array.unsafe_get children i) in
       f i (T r.child)
     done
   | Freeze { child; _ } -> f 0 (T child)
   | If_test_change { test; _ } -> f 0 (T test)
   | If_then_else { test_change; current_branch; _ } ->
     f 0 (T test_change);
-    if Uopt.is_some current_branch then f 1 (T (Uopt.unsafe_value current_branch))
+    if Or_null.is_this current_branch then f 1 (T (Or_null.unsafe_value current_branch))
   | Invalid -> ()
   | Join_lhs_change { lhs; _ } -> f 0 (T lhs)
   | Join_main { lhs_change; rhs; _ } ->
     f 0 (T lhs_change);
-    if Uopt.is_some rhs then f 1 (T (Uopt.unsafe_value rhs))
+    if Or_null.is_this rhs then f 1 (T (Or_null.unsafe_value rhs))
   | Snapshot _ -> ()
   | Step_function { child; _ } ->
-    if Uopt.is_some child then f 0 (T (Uopt.unsafe_value child))
+    if Or_null.is_this child then f 0 (T (Or_null.unsafe_value child))
   | Uninitialized -> ()
   | Unordered_array_fold { children; _ } ->
     for i = 0 to Array.length children - 1 do
@@ -593,7 +593,7 @@ let slow_get_child : type a. a t -> index:_ -> Node.Packed.t =
   | Array_fold { children; _ } -> T children.(index)
   | Unordered_array_fold { children; _ } -> T children.(index)
   | Expert { children; _ } ->
-    let (E edge) = Uopt.value_exn (Uniform_array.get children index) in
+    let (E edge) = Or_null.value_exn (Uniform_array.get children index) in
     T edge.child
   | _ ->
     with_return (fun r ->
