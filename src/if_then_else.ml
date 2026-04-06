@@ -7,7 +7,7 @@ type 'a t = 'a Types.If_then_else.t =
   { main : 'a Node.t
   ; test : bool Node.t
   ; test_change : unit Node.t
-  ; mutable current_branch : 'a Node.t Uopt.t
+  ; mutable current_branch : 'a Node.t or_null
   ; then_ : 'a Node.t
   ; else_ : 'a Node.t
   }
@@ -34,9 +34,9 @@ let invariant _invariant_a t =
            | _ -> assert false))
       ~current_branch:
         (check (fun current_branch ->
-           if Uopt.is_some current_branch
+           if Or_null.is_this current_branch
            then (
-             let current_branch = Uopt.value_exn current_branch in
+             let current_branch = Or_null.value_exn current_branch in
              assert (
                phys_equal current_branch t.then_ || phys_equal current_branch t.else_))))
       ~then_:ignore

@@ -16,7 +16,7 @@ module rec Adjust_heights_heap : sig
     { mutable length : int
     ; mutable height_lower_bound : int
     ; mutable max_height_seen : int
-    ; mutable nodes_by_height : Node.Packed.t Uopt.t Uniform_array.t
+    ; mutable nodes_by_height : Node.Packed.t or_null Uniform_array.t
     }
 end =
   Adjust_heights_heap
@@ -37,7 +37,7 @@ and Alarm_value : sig
 
   type t =
     { action : Action.t
-    ; mutable next_fired : t Uopt.t
+    ; mutable next_fired : t or_null
     }
 end =
   Alarm_value
@@ -78,9 +78,9 @@ and Bind : sig
     ; mutable f : 'a -> 'b Node.t
     ; lhs : 'a Node.t
     ; lhs_change : unit Node.t
-    ; mutable rhs : 'b Node.t Uopt.t
+    ; mutable rhs : 'b Node.t or_null
     ; mutable rhs_scope : Scope.t
-    ; mutable all_nodes_created_on_rhs : Node.Packed.t Uopt.t
+    ; mutable all_nodes_created_on_rhs : Node.Packed.t or_null
     }
 end =
   Bind
@@ -90,7 +90,7 @@ and Clock : sig
     { timing_wheel : Alarm_value.t Timing_wheel.t
     ; now : Time_ns.t Var.t
     ; handle_fired : Alarm.t -> unit
-    ; mutable fired_alarm_values : Alarm_value.t Uopt.t
+    ; mutable fired_alarm_values : Alarm_value.t or_null
     }
 end =
   Clock
@@ -99,7 +99,7 @@ and Expert : sig
   type 'a edge =
     { child : 'a Node.t
     ; on_change : 'a -> unit
-    ; mutable index : int Uopt.t
+    ; mutable index : int or_null
     }
 
   type packed_edge = E : 'a edge -> packed_edge [@@unboxed]
@@ -107,7 +107,7 @@ and Expert : sig
   type 'a t =
     { f : unit -> 'a
     ; on_observability_change : is_now_observable:bool -> unit
-    ; mutable children : packed_edge Uopt.t Uniform_array.t
+    ; mutable children : packed_edge or_null Uniform_array.t
     ; mutable num_children : int
     ; mutable force_stale : bool
     ; mutable num_invalid_children : int
@@ -130,7 +130,7 @@ and If_then_else : sig
     { main : 'a Node.t
     ; test : bool Node.t
     ; test_change : unit Node.t
-    ; mutable current_branch : 'a Node.t Uopt.t
+    ; mutable current_branch : 'a Node.t or_null
     ; then_ : 'a Node.t
     ; else_ : 'a Node.t
     }
@@ -150,10 +150,10 @@ and Internal_observer : sig
     { mutable state : State.t
     ; observing : 'a Node.t
     ; mutable on_update_handlers : 'a On_update_handler.t list
-    ; mutable prev_in_all : Internal_observer.Packed.t Uopt.t
-    ; mutable next_in_all : Internal_observer.Packed.t Uopt.t
-    ; mutable prev_in_observing : 'a t Uopt.t
-    ; mutable next_in_observing : 'a t Uopt.t
+    ; mutable prev_in_all : Internal_observer.Packed.t or_null
+    ; mutable next_in_all : Internal_observer.Packed.t or_null
+    ; mutable prev_in_observing : 'a t or_null
+    ; mutable next_in_observing : 'a t or_null
     }
 
   type 'a internal_observer = 'a t
@@ -169,7 +169,7 @@ and Join : sig
     { main : 'a Node.t
     ; lhs : 'a Node.t Node.t
     ; lhs_change : unit Node.t
-    ; mutable rhs : 'a Node.t Uopt.t
+    ; mutable rhs : 'a Node.t or_null
     }
 end =
   Join
@@ -420,24 +420,24 @@ and Node : sig @@ portable
     { id : Node_id.t
     ; state : State.t
     ; mutable recomputed_at : Stabilization_num.t
-    ; mutable value_opt : 'a Uopt.t
+    ; mutable value_opt : 'a or_null
     ; mutable kind : 'a Kind.t
     ; mutable cutoff : 'a Cutoff.t
     ; mutable changed_at : Stabilization_num.t
     ; mutable num_on_update_handlers : int
     ; mutable num_parents : int
-    ; mutable parent1_and_beyond : Node.Packed.t Uopt.t Uniform_array.t
-    ; mutable parent0 : Node.Packed.t Uopt.t
+    ; mutable parent1_and_beyond : Node.Packed.t or_null Uniform_array.t
+    ; mutable parent0 : Node.Packed.t or_null
     ; mutable created_in : Scope.t
-    ; mutable next_node_in_same_scope : Node.Packed.t Uopt.t
+    ; mutable next_node_in_same_scope : Node.Packed.t or_null
     ; mutable height : int
     ; mutable height_in_recompute_heap : int
-    ; mutable prev_in_recompute_heap : Node.Packed.t Uopt.t
-    ; mutable next_in_recompute_heap : Node.Packed.t Uopt.t
+    ; mutable prev_in_recompute_heap : Node.Packed.t or_null
+    ; mutable next_in_recompute_heap : Node.Packed.t or_null
     ; mutable height_in_adjust_heights_heap : int
-    ; mutable next_in_adjust_heights_heap : Node.Packed.t Uopt.t
-    ; mutable old_value_opt : 'a Uopt.t
-    ; mutable observers : 'a Internal_observer.t Uopt.t
+    ; mutable next_in_adjust_heights_heap : Node.Packed.t or_null
+    ; mutable old_value_opt : 'a or_null
+    ; mutable observers : 'a Internal_observer.t or_null
     ; mutable is_in_handle_after_stabilization : bool
     ; mutable on_update_handlers : 'a On_update_handler.t list
     ; mutable my_parent_index_in_child_at_index : int array
@@ -483,7 +483,7 @@ end = struct
      used during graph manipulation, and so is written with some care to be fast. *)
   let is_necessary t =
     t.num_parents > 0
-    || Uopt.is_some t.observers
+    || Or_null.is_this t.observers
     || (match t.kind with
         | Freeze _ -> true
         | _ -> false)
@@ -535,7 +535,7 @@ and Recompute_heap : sig
   type t =
     { mutable length : int
     ; mutable height_lower_bound : int
-    ; mutable nodes_by_height : Node.Packed.t Uopt.t Uniform_array.t
+    ; mutable nodes_by_height : Node.Packed.t or_null Uniform_array.t
     }
 end =
   Recompute_heap
@@ -582,7 +582,7 @@ and State : sig
     ; adjust_heights_heap : Adjust_heights_heap.t
     ; propagate_invalidity : Node.Packed.t Stack.t
     ; mutable num_active_observers : int
-    ; mutable all_observers : Internal_observer.Packed.t Uopt.t
+    ; mutable all_observers : Internal_observer.Packed.t or_null
     ; finalized_observers : Internal_observer.Packed.t Thread_safe_queue.t
     ; new_observers : Internal_observer.Packed.t Stack.t
     ; disallowed_observers : Internal_observer.Packed.t Stack.t
@@ -617,9 +617,9 @@ end =
 and Step_function_node : sig
   type 'a t =
     { main : 'a Node.t
-    ; mutable child : 'a Step_function.t Node.t Uopt.t
+    ; mutable child : 'a Step_function.t Node.t or_null
     ; mutable extracted_step_function_from_child_at : Stabilization_num.t
-    ; mutable value : 'a Uopt.t
+    ; mutable value : 'a or_null
     ; mutable upcoming_steps : (Time_ns.t * 'a) Sequence.t
     ; mutable alarm : Alarm.t
     ; mutable alarm_value : Alarm_value.t
@@ -636,7 +636,7 @@ and Unordered_array_fold : sig
     ; update : 'acc -> old_value:'a -> new_value:'a -> 'acc
     ; full_compute_every_n_changes : int
     ; children : 'a Node.t array
-    ; mutable fold_value : 'acc Uopt.t
+    ; mutable fold_value : 'acc or_null
     ; mutable num_changes_since_last_full_compute : int
     }
 end =
@@ -645,7 +645,7 @@ end =
 and Var : sig
   type 'a t =
     { mutable value : 'a
-    ; mutable value_set_during_stabilization : 'a Uopt.t
+    ; mutable value_set_during_stabilization : 'a or_null
     ; mutable set_at : Stabilization_num.t
     ; watch : 'a Node.t
     }

@@ -72,7 +72,7 @@ type t = Types.State.t =
   ; (* [all_observers] is the doubly-linked list of all observers in effect, or that have
        been disallowed since the most recent start of a stabilization -- these have
        [state] as [In_use] or [Disallowed]. *)
-    mutable all_observers : Internal_observer.Packed.t Uopt.t
+    mutable all_observers : Internal_observer.Packed.t or_null
   ; (* We enqueue finalized observers in a thread-safe queue, for handling during
        stabilization. We use a thread-safe queue because OCaml finalizers can run in any
        thread. *)
@@ -143,7 +143,7 @@ module Clock = struct
       timing_wheel : Alarm_value.t Timing_wheel.t
     ; now : Time_ns.t Var.t
     ; handle_fired : Alarm.t -> unit
-    ; mutable fired_alarm_values : Alarm_value.t Uopt.t
+    ; mutable fired_alarm_values : Alarm_value.t or_null
     }
   [@@deriving fields ~iterators:iter, sexp_of]
 
@@ -156,7 +156,7 @@ module Clock = struct
              assert (Time_ns.equal now.value (Timing_wheel.now t.timing_wheel))))
         ~handle_fired:ignore
         ~fired_alarm_values:
-          (check (fun fired_alarm_values -> assert (Uopt.is_none fired_alarm_values)))
+          (check (fun fired_alarm_values -> assert (Or_null.is_null fired_alarm_values)))
         ~timing_wheel:(check (Timing_wheel.invariant Alarm_value.invariant)))
   ;;
 
@@ -171,8 +171,8 @@ let max_height_seen t = Adjust_heights_heap.max_height_seen t.adjust_heights_hea
 
 let iter_observers t ~f =
   let r = ref t.all_observers in
-  while Uopt.is_some !r do
-    let observer = Uopt.unsafe_value !r in
+  while Or_null.is_this !r do
+    let observer = Or_null.unsafe_value !r in
     r := Internal_observer.Packed.next_in_all observer;
     f observer
   done
@@ -243,7 +243,7 @@ let invariant t =
         Internal_observer.invariant ignore internal_observer);
       iter_observer_descendants t ~f:(fun (T node) ->
         Node.invariant ignore node;
-        if not (am_stabilizing t) then assert (Uopt.is_none node.old_value_opt);
+        if not (am_stabilizing t) then assert (Or_null.is_null node.old_value_opt);
         assert (node.height <= Adjust_heights_heap.max_height_seen t.adjust_heights_heap));
       assert (
         Adjust_heights_heap.max_height_allowed t.adjust_heights_heap
@@ -297,7 +297,7 @@ let invariant t =
              | Stabilizing ->
                Stack.invariant
                  (fun (Var.Packed.T var) ->
-                   assert (Uopt.is_some var.value_set_during_stabilization))
+                   assert (Or_null.is_this var.value_set_during_stabilization))
                  set_during_stabilization))
         ~handle_after_stabilization:(check (Stack.invariant Node.Packed.invariant))
         ~run_on_update_handlers:(check (Stack.invariant Run_on_update_handlers.invariant))
@@ -421,8 +421,8 @@ let rec invalidate_node : type a. a Node.t -> unit =
   then (
     let t = node.state in
     if node.num_on_update_handlers > 0 then handle_after_stabilization node;
-    node.value_opt <- Uopt.get_none ();
-    if debug then assert (Uopt.is_none node.old_value_opt);
+    node.value_opt <- Null;
+    if debug then assert (Or_null.is_null node.old_value_opt);
     node.changed_at <- t.stabilization_num;
     node.recomputed_at <- t.stabilization_num;
     t.num_nodes_invalidated <- t.num_nodes_invalidated + 1;
@@ -459,10 +459,10 @@ let rec invalidate_node : type a. a Node.t -> unit =
 
 and invalidate_nodes_created_on_rhs node =
   let r = ref node in
-  while Uopt.is_some !r do
-    let (T node_on_rhs) = Uopt.unsafe_value !r in
+  while Or_null.is_this !r do
+    let (T node_on_rhs) = Or_null.unsafe_value !r in
     r := node_on_rhs.next_node_in_same_scope;
-    node_on_rhs.next_node_in_same_scope <- Uopt.get_none ();
+    node_on_rhs.next_node_in_same_scope <- Null;
     invalidate_node node_on_rhs
   done
 ;;
@@ -473,12 +473,13 @@ and invalidate_nodes_created_on_rhs node =
    graph. This in turn means that we will continue to compute those nodes after the parent
    bind's lhs, which gives them more of a chance to become unnecessary and not be computed
    should the parent bind's lhs change. *)
-let rescope_nodes_created_on_rhs _t (first_node_on_rhs : Node.Packed.t Uopt.t) ~new_scope =
+let rescope_nodes_created_on_rhs _t (first_node_on_rhs : Node.Packed.t or_null) ~new_scope
+  =
   let r = ref first_node_on_rhs in
-  while Uopt.is_some !r do
-    let (T node_on_rhs) = Uopt.unsafe_value !r in
+  while Or_null.is_this !r do
+    let (T node_on_rhs) = Or_null.unsafe_value !r in
     r := node_on_rhs.next_node_in_same_scope;
-    node_on_rhs.next_node_in_same_scope <- Uopt.get_none ();
+    node_on_rhs.next_node_in_same_scope <- Null;
     node_on_rhs.created_in <- new_scope;
     Scope.add_node new_scope node_on_rhs
   done
@@ -635,16 +636,16 @@ let within_scope t scope ~(f @ local) =
 let change_child
   : type a b.
     parent:a Node.t
-    -> old_child:b Node.t Uopt.t
+    -> old_child:b Node.t or_null
     -> new_child:b Node.t
     -> child_index:int
     -> unit
   =
   fun ~parent ~old_child ~new_child ~child_index ->
-  if Uopt.is_none old_child
+  if Or_null.is_null old_child
   then add_parent ~child:new_child ~parent ~child_index
   else (
-    let old_child = Uopt.unsafe_value old_child in
+    let old_child = Or_null.unsafe_value old_child in
     if not (phys_equal old_child new_child)
     then (
       (* We remove [old_child] before adding [new_child], because they share the same
@@ -694,9 +695,9 @@ let rec recompute : type a. a Node.t -> unit =
        } as bind) ->
     (* We clear [all_nodes_created_on_rhs] so it will hold just the nodes created by this
        call to [f]. *)
-    bind.all_nodes_created_on_rhs <- Uopt.get_none ();
+    bind.all_nodes_created_on_rhs <- Null;
     let rhs = run_with_scope t rhs_scope ~f:(fun () -> f (Node.value_exn lhs)) in
-    bind.rhs <- Uopt.some rhs;
+    bind.rhs <- This rhs;
     (* Anticipate what [maybe_change_value] will do, to make sure Bind_main is stale right
        away. This way, if the new child is invalid, we'll satisfy the invariant saying
        that [needs_to_be_computed bind_main] in [propagate_invalidity] *)
@@ -706,7 +707,7 @@ let rec recompute : type a. a Node.t -> unit =
       ~old_child:old_rhs
       ~new_child:rhs
       ~child_index:Kind.bind_rhs_child_index;
-    if Uopt.is_some old_rhs
+    if Or_null.is_this old_rhs
     then (
       (* We invalidate after [change_child], because invalidation changes the [kind] of
          nodes to [Invalid], which means that we can no longer visit their children. Also,
@@ -725,7 +726,7 @@ let rec recompute : type a. a Node.t -> unit =
        only visits higher nodes, so [node] is still valid. *)
     if debug then assert (Node.is_valid node);
     maybe_change_value node ()
-  | Bind_main { rhs; _ } -> copy_child ~parent:node ~child:(Uopt.value_exn rhs)
+  | Bind_main { rhs; _ } -> copy_child ~parent:node ~child:(Or_null.value_exn rhs)
   | Const a -> maybe_change_value node a
   | Freeze { child; only_freeze_when; _ } ->
     let value = Node.value_exn child in
@@ -737,7 +738,7 @@ let rec recompute : type a. a Node.t -> unit =
     maybe_change_value node value
   | If_test_change ({ main; current_branch; test; then_; else_; _ } as if_then_else) ->
     let desired_branch = if Node.value_exn test then then_ else else_ in
-    if_then_else.current_branch <- Uopt.some desired_branch;
+    if_then_else.current_branch <- This desired_branch;
     (* see the comment in Bind_lhs_change *)
     node.changed_at <- t.stabilization_num;
     change_child
@@ -747,13 +748,13 @@ let rec recompute : type a. a Node.t -> unit =
       ~child_index:Kind.if_branch_child_index;
     maybe_change_value node ()
   | If_then_else { current_branch; _ } ->
-    copy_child ~parent:node ~child:(Uopt.value_exn current_branch)
+    copy_child ~parent:node ~child:(Or_null.value_exn current_branch)
   | Invalid ->
     (* We never have invalid nodes in the recompute heap; they are never stale. *)
     assert false
   | Join_lhs_change ({ lhs; main; rhs = old_rhs; _ } as join) ->
     let rhs = Node.value_exn lhs in
-    join.rhs <- Uopt.some rhs;
+    join.rhs <- This rhs;
     (* see the comment in Bind_lhs_change *)
     node.changed_at <- t.stabilization_num;
     change_child
@@ -762,7 +763,7 @@ let rec recompute : type a. a Node.t -> unit =
       ~new_child:rhs
       ~child_index:Kind.join_rhs_child_index;
     maybe_change_value node ()
-  | Join_main { rhs; _ } -> copy_child ~parent:node ~child:(Uopt.value_exn rhs)
+  | Join_main { rhs; _ } -> copy_child ~parent:node ~child:(Or_null.value_exn rhs)
   | Map (f, n1) -> maybe_change_value node (f (Node.value_exn n1))
   | Snapshot { at; before; clock; _ } ->
     (* It is a bug if we try to compute a [Snapshot] and the alarm should have fired.
@@ -770,9 +771,9 @@ let rec recompute : type a. a Node.t -> unit =
     if debug then assert (Time_ns.( > ) at (now clock));
     maybe_change_value node before
   | Step_function ({ child; clock; _ } as step_function_node) ->
-    if Uopt.is_some child
+    if Or_null.is_this child
     then (
-      let child = Uopt.value_exn child in
+      let child = Or_null.value_exn child in
       if Stabilization_num.compare
            child.changed_at
            step_function_node.extracted_step_function_from_child_at
@@ -781,19 +782,20 @@ let rec recompute : type a. a Node.t -> unit =
         step_function_node.extracted_step_function_from_child_at <- child.changed_at;
         remove_alarm clock step_function_node.alarm;
         let step_function = Node.value_exn child in
-        step_function_node.value <- Uopt.some (Step_function.init step_function);
+        step_function_node.value <- This (Step_function.init step_function);
         step_function_node.upcoming_steps <- Step_function.steps step_function;
         (* If the child is a constant, we drop our reference to it, to avoid holding on to
            the entire step function. *)
         if Node.is_const child
         then (
           remove_children node;
-          step_function_node.child <- Uopt.get_none ();
+          step_function_node.child <- Null;
           set_height node (Scope.height node.created_in + 1))));
     Step_function_node.advance step_function_node ~to_:(now clock);
-    let step_function_value = Uopt.value_exn step_function_node.value in
+    let step_function_value = Or_null.value_exn step_function_node.value in
     (match Sequence.hd step_function_node.upcoming_steps with
-     | None -> if Uopt.is_none child then Node.set_kind node (Const step_function_value)
+     | None ->
+       if Or_null.is_null child then Node.set_kind node (Const step_function_value)
      | Some (at, _) ->
        step_function_node.alarm <- add_alarm clock ~at step_function_node.alarm_value);
     maybe_change_value node step_function_value
@@ -983,14 +985,14 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
   fun node new_value ->
   let t = node.state in
   let old_value_opt = node.value_opt in
-  if Uopt.is_none old_value_opt
+  if Or_null.is_null old_value_opt
      || not
           (Cutoff.should_cutoff
              node.cutoff
-             ~old_value:(Uopt.unsafe_value old_value_opt)
+             ~old_value:(Or_null.unsafe_value old_value_opt)
              ~new_value)
   then (
-    node.value_opt <- Uopt.some new_value;
+    node.value_opt <- This new_value;
     node.changed_at <- t.stabilization_num;
     t.num_nodes_changed <- t.num_nodes_changed + 1;
     if node.num_on_update_handlers > 0
@@ -1001,7 +1003,7 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
     then (
       for parent_index = 1 to node.num_parents - 1 do
         let (T parent) =
-          Uopt.value_exn (Uniform_array.get node.parent1_and_beyond (parent_index - 1))
+          Or_null.value_exn (Uniform_array.get node.parent1_and_beyond (parent_index - 1))
         in
         (match parent.kind with
          | Expert expert ->
@@ -1035,7 +1037,7 @@ and maybe_change_value : type a. a Node.t -> a -> unit =
         if not (Node.is_in_recompute_heap parent)
         then Recompute_heap.add t.recompute_heap parent
       done;
-      let (T parent) = Uopt.value_exn node.parent0 in
+      let (T parent) = Or_null.value_exn node.parent0 in
       (match parent.kind with
        | Expert p ->
          let child_index = node.my_child_index_in_parent_at_index.(0) in
@@ -1136,7 +1138,7 @@ let unlink_disallowed_observers t =
         | Disallowed -> true
         | _ -> false);
     internal_observer.state <- Unlinked;
-    let (T all_observers) = Uopt.value_exn t.all_observers in
+    let (T all_observers) = Or_null.value_exn t.all_observers in
     if Internal_observer.same internal_observer all_observers
     then t.all_observers <- internal_observer.next_in_all;
     Internal_observer.unlink internal_observer;
@@ -1180,10 +1182,10 @@ let create_observer_impl (observing : _ Node.t) =
     { state = Created
     ; observing
     ; on_update_handlers = []
-    ; prev_in_all = Uopt.get_none ()
-    ; next_in_all = Uopt.get_none ()
-    ; prev_in_observing = Uopt.get_none ()
-    ; next_in_observing = Uopt.get_none ()
+    ; prev_in_all = Null
+    ; next_in_all = Null
+    ; prev_in_observing = Null
+    ; next_in_observing = Null
     }
   in
   Stack.push t.new_observers (T internal_observer);
@@ -1214,22 +1216,22 @@ let add_new_observers t =
     | Created ->
       internal_observer.state <- In_use;
       let old_all_observers = t.all_observers in
-      if Uopt.is_some old_all_observers
+      if Or_null.is_this old_all_observers
       then (
         internal_observer.next_in_all <- old_all_observers;
-        Packed.set_prev_in_all (Uopt.unsafe_value old_all_observers) (Uopt.some packed));
-      t.all_observers <- Uopt.some packed;
+        Packed.set_prev_in_all (Or_null.unsafe_value old_all_observers) (This packed));
+      t.all_observers <- This packed;
       let observing = internal_observer.observing in
       let was_necessary = Node.is_necessary observing in
       observing.num_on_update_handlers
       <- observing.num_on_update_handlers
          + List.length internal_observer.on_update_handlers;
       let old_observers = observing.observers in
-      if Uopt.is_some old_observers
+      if Or_null.is_this old_observers
       then (
         internal_observer.next_in_observing <- old_observers;
-        (Uopt.unsafe_value old_observers).prev_in_observing <- Uopt.some internal_observer);
-      observing.observers <- Uopt.some internal_observer;
+        (Or_null.unsafe_value old_observers).prev_in_observing <- This internal_observer);
+      observing.observers <- This internal_observer;
       (* By adding [internal_observer] to [observing.observers], we may have added
          on-update handlers to [observing]. We need to handle [observing] after this
          stabilization to give those handlers a chance to run. *)
@@ -1294,9 +1296,9 @@ let set_var var value =
       raised_exn
       "cannot set var -- stabilization previously raised"
   | Stabilizing ->
-    if Uopt.is_none var.value_set_during_stabilization
+    if Or_null.is_null var.value_set_during_stabilization
     then Stack.push t.set_during_stabilization (T var);
-    var.value_set_during_stabilization <- Uopt.some value
+    var.value_set_during_stabilization <- This value
 ;;
 
 let reclaim_space_in_weak_hashtbls t =
@@ -1328,25 +1330,25 @@ let stabilize_end t =
   t.stabilization_num <- Stabilization_num.add1 t.stabilization_num;
   while not (Stack.is_empty t.set_during_stabilization) do
     let (T var) = Stack.pop_exn t.set_during_stabilization in
-    let value = Uopt.value_exn var.value_set_during_stabilization in
-    var.value_set_during_stabilization <- Uopt.get_none ();
+    let value = Or_null.value_exn var.value_set_during_stabilization in
+    var.value_set_during_stabilization <- Null;
     set_var_while_not_stabilizing var value
   done;
   while not (Stack.is_empty t.handle_after_stabilization) do
     let (T node) = Stack.pop_exn t.handle_after_stabilization in
     node.is_in_handle_after_stabilization <- false;
     let old_value = node.old_value_opt in
-    node.old_value_opt <- Uopt.get_none ();
+    node.old_value_opt <- Null;
     let node_update : _ Node_update.t =
       if not (Node.is_valid node)
       then Invalidated
       else if not (Node.is_necessary node)
       then Unnecessary
       else (
-        let new_value = Uopt.value_exn node.value_opt in
-        if Uopt.is_none old_value
+        let new_value = Or_null.value_exn node.value_opt in
+        if Or_null.is_null old_value
         then Necessary new_value
-        else Changed (Uopt.unsafe_value old_value, new_value))
+        else Changed (Or_null.unsafe_value old_value, new_value))
     in
     Stack.push t.run_on_update_handlers (T (node, node_update))
   done;
@@ -1429,7 +1431,7 @@ let create_var t ?(use_current_scope = false) value =
   let watch = create_node_in t scope Uninitialized in
   let var =
     { Var.value
-    ; value_set_during_stabilization = Uopt.get_none ()
+    ; value_set_during_stabilization = Null
     ; set_at = t.stabilization_num
     ; watch
     }
@@ -1539,9 +1541,9 @@ let bind (lhs : _ Node.t) ~f =
     ; f
     ; lhs
     ; lhs_change
-    ; rhs = Uopt.get_none ()
+    ; rhs = Null
     ; rhs_scope = Scope.get_top ()
-    ; all_nodes_created_on_rhs = Uopt.get_none ()
+    ; all_nodes_created_on_rhs = Null
     }
   in
   (* We set [lhs_change] to never cutoff so that whenever [lhs] changes, [main] is
@@ -1573,7 +1575,7 @@ let join (lhs : _ Node.t) =
   let t = lhs.state in
   let lhs_change = create_node t Uninitialized in
   let main = create_node t Uninitialized in
-  let join = { Join.lhs; lhs_change; rhs = Uopt.get_none (); main } in
+  let join = { Join.lhs; lhs_change; rhs = Null; main } in
   Node.set_cutoff lhs_change Cutoff.never;
   Node.set_kind lhs_change (Join_lhs_change join);
   Node.set_kind main (Join_main join);
@@ -1585,13 +1587,7 @@ let if_ (test : _ Node.t) ~then_ ~else_ =
   let test_change = create_node t Uninitialized in
   let main = create_node t Uninitialized in
   let if_then_else =
-    { If_then_else.test
-    ; then_
-    ; else_
-    ; test_change
-    ; main
-    ; current_branch = Uopt.get_none ()
-    }
+    { If_then_else.test; then_; else_; test_change; main; current_branch = Null }
   in
   Node.set_cutoff test_change Cutoff.never;
   Node.set_kind test_change (If_test_change if_then_else);
@@ -1836,8 +1832,8 @@ let incremental_step_function clock child =
   let main = create_node t Uninitialized in
   let step_function_node =
     { Step_function_node.main
-    ; value = Uopt.get_none ()
-    ; child = Uopt.some child
+    ; value = Null
+    ; child = This child
     ; extracted_step_function_from_child_at = Stabilization_num.none
     ; upcoming_steps = Sequence.get_empty ()
     ; alarm = Alarm.get_null ()
@@ -1867,10 +1863,10 @@ let advance_clock (clock : Clock.t) ~to_ =
     set_var_while_not_stabilizing clock.now to_;
     Timing_wheel.advance_clock clock.timing_wheel ~to_ ~handle_fired:clock.handle_fired;
     Timing_wheel.fire_past_alarms clock.timing_wheel ~handle_fired:clock.handle_fired;
-    while Uopt.is_some clock.fired_alarm_values do
-      let alarm_value = Uopt.unsafe_value clock.fired_alarm_values in
+    while Or_null.is_this clock.fired_alarm_values do
+      let alarm_value = Or_null.unsafe_value clock.fired_alarm_values in
       clock.fired_alarm_values <- alarm_value.next_fired;
-      alarm_value.next_fired <- Uopt.get_none ();
+      alarm_value.next_fired <- Null;
       match alarm_value.action with
       | At { main; _ } ->
         if Node.is_valid main
@@ -1898,15 +1894,11 @@ let advance_clock (clock : Clock.t) ~to_ =
 let create_clock t ~timing_wheel_config ~start =
   let timing_wheel = Timing_wheel.create ~config:timing_wheel_config ~start in
   let rec clock : Clock.t =
-    { now = create_var t start
-    ; handle_fired
-    ; fired_alarm_values = Uopt.get_none ()
-    ; timing_wheel
-    }
+    { now = create_var t start; handle_fired; fired_alarm_values = Null; timing_wheel }
   and handle_fired alarm =
     let alarm_value = Timing_wheel.Alarm.value clock.timing_wheel alarm in
     alarm_value.next_fired <- clock.fired_alarm_values;
-    clock.fired_alarm_values <- Uopt.some alarm_value
+    clock.fired_alarm_values <- This alarm_value
   in
   clock
 ;;
@@ -1923,7 +1915,7 @@ let create (module Config : Config.Incremental_config) ~max_height_allowed =
     ; recompute_heap
     ; propagate_invalidity = Stack.create ()
     ; num_active_observers = 0
-    ; all_observers = Uopt.get_none ()
+    ; all_observers = Null
     ; finalized_observers = Thread_safe_queue.create ()
     ; disallowed_observers = Stack.create ()
     ; new_observers = Stack.create ()
@@ -1975,8 +1967,8 @@ module Expert = struct
      rather than raising. *)
   let expert_kind_of_node (node : _ Node.t) =
     match node.kind with
-    | Expert e -> Uopt.some e
-    | Invalid -> Uopt.get_none ()
+    | Expert e -> This e
+    | Invalid -> Null
     | kind -> raise_s [%sexp "unexpected kind for expert node", (kind : _ Kind.t)]
   ;;
 
@@ -2026,10 +2018,10 @@ module Expert = struct
   let make_stale (node : _ Node.t) =
     let state = node.state in
     let e_opt = expert_kind_of_node node in
-    if Uopt.is_some e_opt
+    if Or_null.is_this e_opt
     then (
       if debug then assert_currently_running_node_is_child state node "make_stale";
-      let e = Uopt.unsafe_value e_opt in
+      let e = Or_null.unsafe_value e_opt in
       match Expert.make_stale e with
       | `Already_stale -> ()
       | `Ok ->
@@ -2047,7 +2039,7 @@ module Expert = struct
   let add_dependency (node : _ Node.t) (dep : _ Expert.edge) =
     let state = node.state in
     let e_opt = expert_kind_of_node node in
-    if Uopt.is_some e_opt
+    if Or_null.is_this e_opt
     then (
       if debug
       then
@@ -2058,7 +2050,7 @@ module Expert = struct
                    state.only_in_debug.expert_nodes_created_by_current_node
                    (T node))
         then assert_currently_running_node_is_child state node "add_dependency";
-      let e = Uopt.unsafe_value e_opt in
+      let e = Or_null.unsafe_value e_opt in
       let new_child_index = Expert.add_child_edge e (E dep) in
       (* [node] is not guaranteed to be necessary, even if we are running in a child of
          [node], because we could be running due to a parent other than [node] making us
@@ -2074,15 +2066,15 @@ module Expert = struct
   let remove_dependency (node : _ Node.t) (edge : _ Expert.edge) =
     let state = node.state in
     let e_opt = expert_kind_of_node node in
-    if Uopt.is_some e_opt
+    if Or_null.is_this e_opt
     then (
       if debug then assert_currently_running_node_is_child state node "remove_dependency";
-      let e = Uopt.unsafe_value e_opt in
+      let e = Or_null.unsafe_value e_opt in
       (* [node] is not guaranteed to be necessary, for the reason stated in
          [add_dependency] *)
-      let edge_index = Uopt.value_exn edge.index in
+      let edge_index = Or_null.value_exn edge.index in
       let (E last_edge) = Expert.last_child_edge_exn e in
-      let last_edge_index = Uopt.value_exn last_edge.index in
+      let last_edge_index = Or_null.value_exn last_edge.index in
       if edge_index <> last_edge_index
       then (
         if Node.is_necessary node

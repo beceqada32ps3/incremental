@@ -40,5 +40,5 @@ let add_node t (node : _ Node.t) =
   | Top -> ()
   | Bind bind ->
     node.next_node_in_same_scope <- bind.all_nodes_created_on_rhs;
-    bind.all_nodes_created_on_rhs <- Uopt.some (Types.Node.Packed.T node)
+    bind.all_nodes_created_on_rhs <- This (Types.Node.Packed.T node)
 ;;

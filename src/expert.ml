@@ -9,7 +9,7 @@ type 'a edge = 'a Types.Expert.edge =
        the index of this [edge] in that [children] array. It might seem redundant with all
        the other indexes we have, but it is necessary to remove children. The index may
        change as sibling children are removed. *)
-    mutable index : int Uopt.t
+    mutable index : int or_null
   }
 [@@deriving sexp_of]
 
@@ -19,7 +19,7 @@ type packed_edge = Types.Expert.packed_edge = E : 'a edge -> packed_edge
 type 'a t = 'a Types.Expert.t =
   { f : unit -> 'a
   ; on_observability_change : is_now_observable:bool -> unit
-  ; mutable children : packed_edge Uopt.t Uniform_array.t
+  ; mutable children : packed_edge or_null Uniform_array.t
   ; mutable num_children : int
   ; (* When set, makes the node of [t] stale. It is set when the set of children changes.
        Otherwise the normal check of staleness (comparing the [changed_at] field of
@@ -56,9 +56,9 @@ let invariant
   Uniform_array.iteri children ~f:(fun i uopt ->
     match i < num_children with
     | true ->
-      let (E r) = Uopt.value_exn uopt in
-      [%test_result: int] (Uopt.value_exn r.index) ~expect:i
-    | false -> assert (Uopt.is_none uopt))
+      let (E r) = Or_null.value_exn uopt in
+      [%test_result: int] (Or_null.value_exn r.index) ~expect:i
+    | false -> assert (Or_null.is_null uopt))
 ;;
 
 let invariant_about_num_invalid_children t ~is_necessary =
@@ -68,7 +68,7 @@ let invariant_about_num_invalid_children t ~is_necessary =
   else (
     let count_invalid_children = ref 0 in
     for i = 0 to num_children - 1 do
-      let (E r) = Uopt.value_exn (Uniform_array.get children i) in
+      let (E r) = Or_null.value_exn (Uniform_array.get children i) in
       if not (Node.is_valid r.child) then incr count_invalid_children
     done;
     [%test_result: int] num_invalid_children ~expect:!count_invalid_children)
@@ -106,11 +106,11 @@ let make_space_for_child_if_necessary t =
 
 let add_child_edge t packed_edge =
   let (E edge) = packed_edge in
-  assert (Uopt.is_none edge.index);
+  assert (Or_null.is_null edge.index);
   make_space_for_child_if_necessary t;
   let new_child_index = t.num_children in
-  edge.index <- Uopt.some new_child_index;
-  Uniform_array.set t.children new_child_index (Uopt.some packed_edge);
+  edge.index <- This new_child_index;
+  Uniform_array.set t.children new_child_index (This packed_edge);
   t.num_children <- t.num_children + 1;
   t.force_stale <- true;
   (* We will bump the number of invalid children if necessary when connecting child and
@@ -119,27 +119,27 @@ let add_child_edge t packed_edge =
 ;;
 
 let swap_children t ~child_index1 ~child_index2 =
-  let (E edge1) = Uopt.value_exn (Uniform_array.get t.children child_index1) in
-  let (E edge2) = Uopt.value_exn (Uniform_array.get t.children child_index2) in
-  edge1.index <- Uopt.some child_index2;
-  edge2.index <- Uopt.some child_index1;
+  let (E edge1) = Or_null.value_exn (Uniform_array.get t.children child_index1) in
+  let (E edge2) = Or_null.value_exn (Uniform_array.get t.children child_index2) in
+  edge1.index <- This child_index2;
+  edge2.index <- This child_index1;
   Uniform_array.swap t.children child_index1 child_index2
 ;;
 
 let last_child_edge_exn t =
   let last_index = t.num_children - 1 in
-  Uopt.value_exn (Uniform_array.get t.children last_index)
+  Or_null.value_exn (Uniform_array.get t.children last_index)
 ;;
 
 let remove_last_child_edge_exn t =
   let last_index = t.num_children - 1 in
   let packed_edge_opt = Uniform_array.get t.children last_index in
-  Uniform_array.set t.children last_index (Uopt.get_none ());
+  Uniform_array.set t.children last_index Null;
   t.num_children <- last_index;
   t.force_stale <- true;
-  assert (Uopt.is_some packed_edge_opt);
-  let (E edge) = Uopt.unsafe_value packed_edge_opt in
-  edge.index <- Uopt.none
+  assert (Or_null.is_this packed_edge_opt);
+  let (E edge) = Or_null.unsafe_value packed_edge_opt in
+  edge.index <- Null
 ;;
 
 let before_main_computation t =
@@ -152,8 +152,8 @@ let before_main_computation t =
     if will_fire_all_callbacks
     then
       for i = 0 to t.num_children - 1 do
-        let (E r) = Uopt.value_exn (Uniform_array.get t.children i) in
-        r.on_change (Uopt.value_exn r.child.value_opt)
+        let (E r) = Or_null.value_exn (Uniform_array.get t.children i) in
+        r.on_change (Or_null.value_exn r.child.value_opt)
       done;
     `Ok)
 ;;
@@ -171,10 +171,10 @@ let observability_change t ~is_now_observable =
 let run_edge_callback t ~child_index =
   if not t.will_fire_all_callbacks
   then (
-    let (E r) = Uopt.value_exn (Uniform_array.get t.children child_index) in
+    let (E r) = Or_null.value_exn (Uniform_array.get t.children child_index) in
     (* This value is not necessarily set, because we try to run this when connecting the
        node to its children, which could be before they have run even once. Also the node
        could be invalid. *)
-    if Uopt.is_some r.child.value_opt
-    then r.on_change (Uopt.unsafe_value r.child.value_opt))
+    if Or_null.is_this r.child.value_opt
+    then r.on_change (Or_null.unsafe_value r.child.value_opt))
 ;;

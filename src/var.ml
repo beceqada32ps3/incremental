@@ -4,11 +4,11 @@ module Node = Types.Node
 
 type 'a t = 'a Types.Var.t =
   { mutable value : 'a
-  ; (* [value_set_during_stabilization] is only set to [Uopt.some] if the user calls
-       [Var.set] during stabilization, in which case it holds the (last) value set. At the
-       end of stabilization, all such variables are processed to do
+  ; (* [value_set_during_stabilization] is only set to [This] if the user calls [Var.set]
+       during stabilization, in which case it holds the (last) value set. At the end of
+       stabilization, all such variables are processed to do
        [t.value <- t.value_set_during_stabilization]. *)
-    mutable value_set_during_stabilization : 'a Uopt.t
+    mutable value_set_during_stabilization : 'a or_null
   ; (* [set_at] the stabilization number in effect the most recent time [t.value] changed.
        This is not necessarily the same as the stabilization number in effect the most
        recent time [Var.set t] was called, due to the effect of [Var.set] during
@@ -23,7 +23,7 @@ let invariant invariant_a t =
     let check f = Invariant.check_field t f in
     Fields.iter
       ~value:(check invariant_a)
-      ~value_set_during_stabilization:(check (Uopt.invariant invariant_a))
+      ~value_set_during_stabilization:(check (Or_null.invariant invariant_a))
       ~set_at:(check Stabilization_num.invariant)
       ~watch:
         (check (fun (watch : _ Node.t) ->
@@ -41,7 +41,7 @@ module Packed = struct
 end
 
 let latest_value t =
-  if Uopt.is_some t.value_set_during_stabilization
-  then Uopt.unsafe_value t.value_set_during_stabilization
+  if Or_null.is_this t.value_set_during_stabilization
+  then Or_null.unsafe_value t.value_set_during_stabilization
   else t.value
 ;;

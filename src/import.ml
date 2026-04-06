@@ -49,10 +49,10 @@ module Array = struct
   ;;
 end
 
-module Uopt = struct
-  include Uopt
+module Or_null = struct
+  include Or_null
 
-  let unsafe_value = if debug then value_exn else unsafe_value
+  let unsafe_value t = if debug then value_exn ~here:[%here] t else unsafe_value t
 end
 
 module Uniform_array = struct
@@ -75,7 +75,7 @@ module Uniform_array = struct
 
   (* Requires [len >= length t]. *)
   let realloc t ~len =
-    let new_t = create ~len (Uopt.get_none ()) in
+    let new_t = create ~len Null in
     blit ~src:t ~src_pos:0 ~dst:new_t ~dst_pos:0 ~len:(length t);
     new_t
   ;;

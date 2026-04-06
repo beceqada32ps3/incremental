@@ -37,7 +37,7 @@ val child_changed
   :  ('a, _) t
   -> child:'b Types.Node.t
   -> child_index:int
-  -> old_value_opt:'b Uopt.t
+  -> old_value_opt:'b or_null
   -> new_value:'b
   -> unit
 

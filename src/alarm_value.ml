@@ -22,7 +22,7 @@ type t = Types.Alarm_value.t =
   { action : Action.t
   ; (* [next_fired] singly links all alarm values that fire during a single call to
        [advance_clock]. *)
-    mutable next_fired : (t Uopt.t[@sexp.opaque])
+    mutable next_fired : (t or_null[@sexp.opaque])
   }
 [@@deriving fields ~iterators:iter, sexp_of]
 
@@ -32,4 +32,4 @@ let invariant t =
     Fields.iter ~action:(check Action.invariant) ~next_fired:ignore)
 ;;
 
-let create action = { action; next_fired = Uopt.get_none () }
+let create action = { action; next_fired = Null }

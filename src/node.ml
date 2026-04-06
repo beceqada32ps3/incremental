@@ -18,7 +18,7 @@ type 'a t = 'a Types.Node.t =
     mutable recomputed_at : Stabilization_num.t
   ; (* [value_opt] starts as [none], and the first time [t] is computed it is set to
        [some], and remains [some] thereafter, until [t] is invalidated, if ever. *)
-    mutable value_opt : 'a Uopt.t
+    mutable value_opt : 'a or_null
   ; (* [kind] is the kind of DAG node [t] is. [kind] is mutable both for initialization
        and because it can change, e.g. if [t] is invalidated. *)
     mutable kind : 'a Kind.t
@@ -43,14 +43,14 @@ type 'a t = 'a Types.Node.t =
        This representation is optimized for the overwhelmingly common case that a node has
        only one parent. *)
     mutable num_parents : int
-  ; mutable parent1_and_beyond : Packed.t Uopt.t Uniform_array.t
-  ; mutable parent0 : Packed.t Uopt.t
+  ; mutable parent1_and_beyond : Packed.t or_null Uniform_array.t
+  ; mutable parent0 : Packed.t or_null
   ; (* [created_in] is initially the scope that the node is created in. If a node is later
        "rescoped", then created_in will be adjusted to the new scope that the node is part
        of. *)
     mutable created_in : Scope.t
   ; (* [next_node_in_same_scope] singly links all nodes created in [t.created_in]. *)
-    mutable next_node_in_same_scope : Packed.t Uopt.t
+    mutable next_node_in_same_scope : Packed.t or_null
   ; (* [height] is used to visit nodes in topological order. If [is_necessary t], then
        [height > c.height] for all children [c] of [t], and
        [height > Scope.height t.created_in]. If [not (is_necessary t)], then
@@ -66,23 +66,23 @@ type 'a t = 'a Types.Node.t =
     mutable height_in_recompute_heap : int
   ; (* [prev_in_recompute_heap] and [next_in_recompute_heap] doubly link all nodes of the
        same height in the recompute heap. *)
-    mutable prev_in_recompute_heap : Packed.t Uopt.t
-  ; mutable next_in_recompute_heap : Packed.t Uopt.t
+    mutable prev_in_recompute_heap : Packed.t or_null
+  ; mutable next_in_recompute_heap : Packed.t or_null
   ; (* [height_in_adjust_heights_heap] is used only during height adjustment, and is
        non-negative iff [t] is in the adjust-heights heap. It holds the pre-adjusted
        height of [t]. *)
     mutable height_in_adjust_heights_heap : int
   ; (* [next_in_adjust_heights_heap] singly links all nodes of the same height in the
        adjust-heights heap. *)
-    mutable next_in_adjust_heights_heap : Packed.t Uopt.t
+    mutable next_in_adjust_heights_heap : Packed.t or_null
   ; (* [old_value_opt] is used only during stabilization, and only if
        [t.num_on_update_handlers > 0]. It holds the pre-stabilization value of [t]. It is
-       cleared when running [t]'s on-update handlers, and so is always [Uopt.none] between
+       cleared when running [t]'s on-update handlers, and so is always [Null] between
        stabilizations. *)
-    mutable old_value_opt : 'a Uopt.t
-  ; (* [observers] is the head of the doubly-linked list of observers of [t], or
-       [Uopt.none] if there are no observers. *)
-    mutable observers : ('a Internal_observer.t[@sexp.opaque]) Uopt.t
+    mutable old_value_opt : 'a or_null
+  ; (* [observers] is the head of the doubly-linked list of observers of [t], or [Null] if
+       there are no observers. *)
+    mutable observers : ('a Internal_observer.t[@sexp.opaque]) or_null
   ; (* [is_in_handle_after_stabilization] is used to avoid pushing the same node multiple
        times onto [state.handle_after_stabilization]. *)
     mutable is_in_handle_after_stabilization : bool
@@ -198,16 +198,16 @@ let is_in_recompute_heap t = t.height_in_recompute_heap >= 0
 let is_in_adjust_heights_heap t = t.height_in_adjust_heights_heap >= 0
 
 let get_parent t ~index =
-  Uopt.value_exn
+  Or_null.value_exn
     (if index = 0 then t.parent0 else Uniform_array.get t.parent1_and_beyond (index - 1))
 ;;
 
 let iteri_parents t ~f =
   if t.num_parents > 0
   then (
-    f 0 (Uopt.value_exn t.parent0);
+    f 0 (Or_null.value_exn t.parent0);
     for index = 1 to t.num_parents - 1 do
-      f index (Uopt.value_exn (Uniform_array.get t.parent1_and_beyond (index - 1)))
+      f index (Or_null.value_exn (Uniform_array.get t.parent1_and_beyond (index - 1)))
     done)
 ;;
 
@@ -279,8 +279,8 @@ let should_be_invalidated : type a. a t -> bool =
 let fold_observers (t : _ t) ~init ~f =
   let r = ref t.observers in
   let ac = ref init in
-  while Uopt.is_some !r do
-    let observer = Uopt.value_exn !r in
+  while Or_null.is_this !r do
+    let observer = Or_null.value_exn !r in
     r := observer.next_in_observing;
     ac := f !ac observer
   done;
@@ -310,8 +310,8 @@ let invariant (type a) (invariant_a : a -> unit) (t : a t) =
       ~recomputed_at:(check Stabilization_num.invariant)
       ~value_opt:
         (check (fun value_opt ->
-           if is_valid t && not (is_stale t) then assert (Uopt.is_some value_opt);
-           Uopt.invariant invariant_a value_opt))
+           if is_valid t && not (is_stale t) then assert (Or_null.is_this value_opt);
+           Or_null.invariant invariant_a value_opt))
       ~kind:
         (check (fun kind ->
            Kind.invariant invariant_a kind;
@@ -341,16 +341,16 @@ let invariant (type a) (invariant_a : a -> unit) (t : a t) =
            for parent_index = 1 to Uniform_array.length parent1_and_beyond do
              [%test_eq: bool]
                (parent_index < t.num_parents)
-               (Uopt.is_some (Uniform_array.get parent1_and_beyond (parent_index - 1)))
+               (Or_null.is_this (Uniform_array.get parent1_and_beyond (parent_index - 1)))
            done))
       ~parent0:
         (check (fun parent0 ->
-           [%test_eq: bool] (t.num_parents > 0) (Uopt.is_some parent0)))
+           [%test_eq: bool] (t.num_parents > 0) (Or_null.is_this parent0)))
       ~created_in:(check Scope.invariant)
       ~next_node_in_same_scope:
         (check (fun next_node_in_same_scope ->
            if Scope.is_top t.created_in || not (is_valid t)
-           then assert (Uopt.is_none next_node_in_same_scope)))
+           then assert (Or_null.is_null next_node_in_same_scope)))
       ~height:
         (check (fun height ->
            if is_necessary t then assert (height >= 0) else assert (height = -1)))
@@ -359,37 +359,37 @@ let invariant (type a) (invariant_a : a -> unit) (t : a t) =
            assert (height_in_recompute_heap >= -1);
            assert (height_in_recompute_heap <= t.height)))
       ~prev_in_recompute_heap:
-        (check (fun (prev_in_recompute_heap : Packed.t Uopt.t) ->
+        (check (fun (prev_in_recompute_heap : Packed.t or_null) ->
            if not (is_in_recompute_heap t)
-           then assert (Uopt.is_none prev_in_recompute_heap);
-           if Uopt.is_some prev_in_recompute_heap
+           then assert (Or_null.is_null prev_in_recompute_heap);
+           if Or_null.is_this prev_in_recompute_heap
            then (
-             let (T prev) = Uopt.value_exn prev_in_recompute_heap in
-             assert (packed_same (T t) (Uopt.value_exn prev.next_in_recompute_heap));
+             let (T prev) = Or_null.value_exn prev_in_recompute_heap in
+             assert (packed_same (T t) (Or_null.value_exn prev.next_in_recompute_heap));
              assert (t.height_in_recompute_heap = prev.height_in_recompute_heap))))
       ~next_in_recompute_heap:
-        (check (fun (next_in_recompute_heap : Packed.t Uopt.t) ->
+        (check (fun (next_in_recompute_heap : Packed.t or_null) ->
            if not (is_in_recompute_heap t)
-           then assert (Uopt.is_none next_in_recompute_heap);
-           if Uopt.is_some next_in_recompute_heap
+           then assert (Or_null.is_null next_in_recompute_heap);
+           if Or_null.is_this next_in_recompute_heap
            then (
-             let (T next) = Uopt.value_exn next_in_recompute_heap in
-             assert (packed_same (T t) (Uopt.value_exn next.prev_in_recompute_heap));
+             let (T next) = Or_null.value_exn next_in_recompute_heap in
+             assert (packed_same (T t) (Or_null.value_exn next.prev_in_recompute_heap));
              assert (t.height_in_recompute_heap = next.height_in_recompute_heap))))
       ~height_in_adjust_heights_heap:
         (check (fun height_in_adjust_heights_heap ->
            if height_in_adjust_heights_heap >= 0
            then assert (height_in_adjust_heights_heap < t.height)))
       ~next_in_adjust_heights_heap:
-        (check (fun (next_in_adjust_heights_heap : Packed.t Uopt.t) ->
+        (check (fun (next_in_adjust_heights_heap : Packed.t or_null) ->
            if not (is_in_adjust_heights_heap t)
-           then assert (Uopt.is_none next_in_adjust_heights_heap)
-           else if Uopt.is_some next_in_adjust_heights_heap
+           then assert (Or_null.is_null next_in_adjust_heights_heap)
+           else if Or_null.is_this next_in_adjust_heights_heap
            then (
-             let (T next) = Uopt.value_exn next_in_adjust_heights_heap in
+             let (T next) = Or_null.value_exn next_in_adjust_heights_heap in
              assert (is_in_adjust_heights_heap next);
              assert (t.height_in_adjust_heights_heap = next.height_in_adjust_heights_heap))))
-      ~old_value_opt:(check (Uopt.invariant invariant_a))
+      ~old_value_opt:(check (Or_null.invariant invariant_a))
       ~observers:
         (check (fun _ ->
            iter_observers t ~f:(fun { state; observing; _ } ->
@@ -437,11 +437,11 @@ let invariant (type a) (invariant_a : a -> unit) (t : a t) =
       ~creation_backtrace:ignore)
 ;;
 
-let unsafe_value t = Uopt.unsafe_value t.value_opt
+let unsafe_value t = Or_null.unsafe_value t.value_opt
 
 let value_exn t =
-  if Uopt.is_some t.value_opt
-  then Uopt.unsafe_value t.value_opt
+  if Or_null.is_this t.value_opt
+  then Or_null.unsafe_value t.value_opt
   else failwiths "attempt to get value of an invalid node" t [%sexp_of: _ t]
 ;;
 
@@ -469,8 +469,8 @@ let run_on_update_handlers t node_update ~now =
       On_update_handler.run on_update_handler node_update ~now
   done;
   let r = ref t.observers in
-  while Uopt.is_some !r do
-    let observer = Uopt.value_exn !r in
+  while Or_null.is_this !r do
+    let observer = Or_null.value_exn !r in
     r := observer.next_in_observing;
     let r = ref observer.on_update_handlers in
     while not (List.is_empty !r) do
@@ -500,24 +500,24 @@ let create state created_in kind =
     { id = Node_id.next ()
     ; state
     ; recomputed_at = Stabilization_num.none
-    ; value_opt = Uopt.get_none ()
+    ; value_opt = Null
     ; kind
     ; cutoff = Cutoff.phys_equal
     ; changed_at = Stabilization_num.none
     ; num_on_update_handlers = 0
     ; num_parents = 0
     ; parent1_and_beyond = Uniform_array.get_empty ()
-    ; parent0 = Uopt.get_none ()
+    ; parent0 = Null
     ; created_in
-    ; next_node_in_same_scope = Uopt.get_none ()
+    ; next_node_in_same_scope = Null
     ; height = -1
     ; height_in_recompute_heap = -1
-    ; prev_in_recompute_heap = Uopt.get_none ()
-    ; next_in_recompute_heap = Uopt.get_none ()
+    ; prev_in_recompute_heap = Null
+    ; next_in_recompute_heap = Null
     ; height_in_adjust_heights_heap = -1
-    ; next_in_adjust_heights_heap = Uopt.get_none ()
-    ; old_value_opt = Uopt.get_none ()
-    ; observers = Uopt.get_none ()
+    ; next_in_adjust_heights_heap = Null
+    ; old_value_opt = Null
+    ; observers = Null
     ; is_in_handle_after_stabilization = false
     ; on_update_handlers = []
     ; my_parent_index_in_child_at_index =
@@ -561,7 +561,7 @@ let make_space_for_child_if_necessary t ~child_index =
   if debug then assert (child_index < Array.length t.my_parent_index_in_child_at_index)
 ;;
 
-let set_parent : type a. child:a t -> parent:Packed.t Uopt.t -> parent_index:int -> unit =
+let set_parent : type a. child:a t -> parent:Packed.t or_null -> parent_index:int -> unit =
   fun ~child ~parent ~parent_index ->
   if parent_index = 0
   then child.parent0 <- parent
@@ -572,7 +572,7 @@ let link
   : type a b. child:a t -> child_index:int -> parent:b t -> parent_index:int -> unit
   =
   fun ~child ~child_index ~parent ~parent_index ->
-  set_parent ~child ~parent:(Uopt.some (Packed.T parent)) ~parent_index;
+  set_parent ~child ~parent:(This (Packed.T parent)) ~parent_index;
   child.my_child_index_in_parent_at_index.(parent_index) <- child_index;
   parent.my_parent_index_in_child_at_index.(child_index) <- parent_index
 ;;
@@ -581,7 +581,7 @@ let unlink
   : type a b. child:a t -> child_index:int -> parent:b t -> parent_index:int -> unit
   =
   fun ~child ~child_index ~parent ~parent_index ->
-  set_parent ~child ~parent:(Uopt.get_none ()) ~parent_index;
+  set_parent ~child ~parent:Null ~parent_index;
   if debug
   then (
     child.my_child_index_in_parent_at_index.(parent_index) <- -1;
@@ -605,7 +605,8 @@ let remove_parent : type a b. child:a t -> parent:b t -> child_index:int -> unit
   if parent_index < last_parent_index
   then (
     let (T parent) =
-      Uopt.value_exn (Uniform_array.get child.parent1_and_beyond (last_parent_index - 1))
+      Or_null.value_exn
+        (Uniform_array.get child.parent1_and_beyond (last_parent_index - 1))
     in
     link
       ~child
@@ -648,16 +649,16 @@ module Packed = struct
 
   module As_list (M : sig
     @@ portable
-      val next : Packed.t -> Packed.t Uopt.t
+      val next : Packed.t -> Packed.t or_null
     end) =
   struct
-    type t = Packed.t Uopt.t
+    type t = Packed.t or_null
 
     let fold t ~init ~f =
       let ac = ref init in
       let r = ref t in
-      while Uopt.is_some !r do
-        let packed_node = Uopt.unsafe_value !r in
+      while Or_null.is_this !r do
+        let packed_node = Or_null.unsafe_value !r in
         r := M.next packed_node;
         ac := f !ac packed_node
       done;

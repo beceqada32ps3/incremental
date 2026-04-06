@@ -171,9 +171,9 @@ module Generic = struct
       | Disallowed | Unlinked -> [%message "<disallowed>"]
       | In_use ->
         let uopt = !t.observing.value_opt in
-        if Uopt.is_none uopt
+        if Or_null.is_null uopt
         then [%message "<invalid>"]
-        else [%sexp (Uopt.unsafe_value uopt : a)]
+        else [%sexp (Or_null.unsafe_value uopt : a)]
     ;;
   end
 
@@ -257,8 +257,8 @@ module Generic = struct
     if not (is_valid t)
     then Invalid
     else if is_necessary t
-    then Necessary_maybe_stale (Uopt.to_option t.value_opt)
-    else Unnecessary_maybe_stale (Uopt.to_option t.value_opt)
+    then Necessary_maybe_stale (Or_null.to_option t.value_opt)
+    else Unnecessary_maybe_stale (Or_null.to_option t.value_opt)
   ;;
 
   (* We override [sexp_of_t] to show just the value, rather than the internal
@@ -268,7 +268,7 @@ module Generic = struct
     then "<invalid>" |> [%sexp_of: string]
     else if not (is_necessary t)
     then "<unnecessary>" |> [%sexp_of: string]
-    else if Uopt.is_none t.value_opt
+    else if Or_null.is_null t.value_opt
     then "<uncomputed>" |> [%sexp_of: string]
     else unsafe_value t |> [%sexp_of: a]
   ;;

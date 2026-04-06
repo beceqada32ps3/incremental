@@ -18,13 +18,13 @@ let invariant invariant_a invariant_acc t =
       ~children:
         (check (fun children ->
            Array.iter children ~f:(fun (child : _ Node.t) ->
-             Uopt.invariant invariant_a child.value_opt))))
+             Or_null.invariant invariant_a child.value_opt))))
 ;;
 
 let compute { init; f; children } =
   let result = ref init in
   for i = 0 to Array.length children - 1 do
-    result := f !result (Uopt.value_exn (Array.unsafe_get children i).value_opt)
+    result := f !result (Or_null.value_exn (Array.unsafe_get children i).value_opt)
   done;
   !result
 ;;

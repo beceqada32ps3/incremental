@@ -24,7 +24,7 @@ type ('a, 'acc) t = ('a, 'acc) Types.Unordered_array_fold.t =
   ; update : 'acc -> old_value:'a -> new_value:'a -> 'acc
   ; full_compute_every_n_changes : int
   ; children : 'a Node.t array
-  ; mutable fold_value : 'acc Uopt.t
+  ; mutable fold_value : 'acc or_null
   ; mutable num_changes_since_last_full_compute : int
   }
 [@@deriving fields ~iterators:iter, sexp_of]
@@ -47,14 +47,14 @@ let invariant invariant_a invariant_acc t =
       ~children:
         (check (fun children ->
            Array.iter children ~f:(fun (child : _ Node.t) ->
-             Uopt.invariant invariant_a child.value_opt;
+             Or_null.invariant invariant_a child.value_opt;
              if t.num_changes_since_last_full_compute < t.full_compute_every_n_changes
-             then assert (Uopt.is_some child.value_opt))))
+             then assert (Or_null.is_this child.value_opt))))
       ~fold_value:
         (check (fun fold_value ->
-           Uopt.invariant invariant_acc fold_value;
+           Or_null.invariant invariant_acc fold_value;
            [%test_result: bool]
-             (Uopt.is_some fold_value)
+             (Or_null.is_this fold_value)
              ~expect:
                (t.num_changes_since_last_full_compute < t.full_compute_every_n_changes)))
       ~num_changes_since_last_full_compute:
@@ -74,7 +74,7 @@ let create ~init ~f ~update ~full_compute_every_n_changes ~children ~main =
   ; children
   ; main
   ; fold_value =
-      Uopt.get_none ()
+      Null
       (* We make [num_changes_since_last_full_compute = full_compute_every_n_changes] so
          that there will be a full computation the next time the node is computed. *)
   ; num_changes_since_last_full_compute = full_compute_every_n_changes
@@ -84,7 +84,7 @@ let create ~init ~f ~update ~full_compute_every_n_changes ~children ~main =
 let full_compute { init; f; children; _ } =
   let result = ref init in
   for i = 0 to Array.length children - 1 do
-    result := f !result (Uopt.value_exn (Array.unsafe_get children i).value_opt)
+    result := f !result (Or_null.value_exn (Array.unsafe_get children i).value_opt)
   done;
   !result
 ;;
@@ -93,12 +93,12 @@ let compute t =
   if t.num_changes_since_last_full_compute = t.full_compute_every_n_changes
   then (
     t.num_changes_since_last_full_compute <- 0;
-    t.fold_value <- Uopt.some (full_compute t));
-  Uopt.value_exn t.fold_value
+    t.fold_value <- This (full_compute t));
+  Or_null.value_exn t.fold_value
 ;;
 
 let force_full_compute t =
-  t.fold_value <- Uopt.get_none ();
+  t.fold_value <- Null;
   t.num_changes_since_last_full_compute <- t.full_compute_every_n_changes
 ;;
 
@@ -107,7 +107,7 @@ let child_changed
   (t : (a, _) t)
   ~(child : b Node.t)
   ~child_index
-  ~(old_value_opt : b Uopt.t)
+  ~(old_value_opt : b or_null)
   ~(new_value : b)
   =
   let child_at_index = t.children.(child_index) in
@@ -124,12 +124,12 @@ let child_changed
     then (
       t.num_changes_since_last_full_compute <- t.num_changes_since_last_full_compute + 1;
       (* We only reach this case if we have already done a full compute, in which case
-         [Uopt.is_some t.fold_value] and [Uopt.is_some old_value_opt]. *)
+         [Or_null.is_this t.fold_value] and [Or_null.is_this old_value_opt]. *)
       t.fold_value
-      <- Uopt.some
+      <- This
            (t.update
-              (Uopt.value_exn t.fold_value)
-              ~old_value:(Uopt.value_exn old_value_opt)
+              (Or_null.value_exn t.fold_value)
+              ~old_value:(Or_null.value_exn old_value_opt)
               ~new_value))
     else if t.num_changes_since_last_full_compute < t.full_compute_every_n_changes
     then force_full_compute t
