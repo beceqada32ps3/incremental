@@ -1,9 +1,9 @@
 (library
  (name incremental_debug_test)
- (libraries core core_unix expect_test_helpers_core.expect_test_helpers_base
-   expect_test_helpers_core patdiff.expect_test_patdiff expect_test_graphviz
-   expect_test_sexp_diff incremental incremental_skeleton incremental_debug
-   core_unix.time_ns_unix core_kernel.timing_wheel)
+ (libraries core core_unix expect_test_helpers_base expect_test_helpers_core
+   patdiff.expect_test_patdiff expect_test_graphviz expect_test_sexp_diff
+   incremental incremental_skeleton incremental_debug core_unix.time_ns_unix
+   core_kernel.timing_wheel)
  (flags :standard -w -60)
  (preprocess
   (pps ppx_jane)))
