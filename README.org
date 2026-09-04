@@ -12,3 +12,11 @@ Incremental can be useful in a number of applications as including:
 You can find detailed documentation in of the library and how to use
 it in [[../incremental_kernel/blob/master/src/incremental_intf.ml][incremental_kernel/src/incremental_intf.ml]].  You can also find an informal induction.
 introduction to the library in this [[https://blogs.janestreet.com/introducing-incremental/%20][blog post]].
+- Computing derived data while guaranteeing that the derived data
+  stays in sync with the source data, for instance filtering or
+  inversing a mapping.
+
+You can find detailed documentation of the library and how to use
+it in [[https://github.com/janestreet/incremental/blob/master/src/incremental_intf.ml][incremental/src/incremental_intf.ml]].  You can also find an
+informal introduction to the library in this [[https://blog.janestreet.com/introducing-incremental][blog post]]
+and [[https://www.youtube.com/watch?v=G6a5G5i4gQU][this video]].
